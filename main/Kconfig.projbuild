@@ -1,0 +1,53 @@
+menu "E12AIO3 Config"
+
+config WIFI_SSID
+    string "WiFi SSID"
+    default "myssid"
+    help
+        SSID (network name) for the example to connect to.
+
+config WIFI_PASSWORD
+    string "WiFi Password"
+    default "mypassword"
+    help
+        WiFi password (WPA or WPA2) for the example to use.
+
+config WIFI_AP_PASSWORD
+    string "WiFi Recovery Network Password"
+    default "password"
+    help
+        WiFi password used in recovery network
+
+config WIFI_SCAN_RETRY
+    string "WiFi Rescan Timeout"
+    default 120
+    help
+        This configuration permits you to define the time between scans for know
+        networks to retry connections (when droped).
+
+config MQTT_URL
+    string "MQTT URL"
+    default "mqtt://iot.eclipse.org"
+    help
+        URL of the broker to connect to
+
+config MQTT_KEEPALIVE_TIMEOUT
+    string "MQTT Keep Alive"
+    default 120
+    help
+        Number of seconds to send keep alive
+
+
+config WEB_AUTH_USERNAME
+    string "Auth Username"
+    default "admin"
+    help
+        Web authentication username
+
+config WEB_AUTH_PASSWORD
+    string "Auth Password"
+    default "password"
+    help
+        Web authentication password
+
+endmenu

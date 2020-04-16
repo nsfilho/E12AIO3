@@ -1,0 +1,4 @@
+set(COMPONENT_SRCS "e12aio.c wifi.c mqtt.c config.c")
+set(COMPONENT_ADD_INCLUDEDIRS ".")
+
+register_component()
