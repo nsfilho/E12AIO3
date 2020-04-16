@@ -19,7 +19,7 @@ config WIFI_AP_PASSWORD
         WiFi password used in recovery network
 
 config WIFI_SCAN_RETRY
-    string "WiFi Rescan Timeout"
+    int "WiFi Rescan Timeout"
     default 120
     help
         This configuration permits you to define the time between scans for know
@@ -32,7 +32,7 @@ config MQTT_URL
         URL of the broker to connect to
 
 config MQTT_KEEPALIVE_TIMEOUT
-    string "MQTT Keep Alive"
+    int "MQTT Keep Alive"
     default 120
     help
         Number of seconds to send keep alive
