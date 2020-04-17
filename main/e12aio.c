@@ -31,6 +31,6 @@ void app_main()
   }
   ESP_ERROR_CHECK(ret);
   config_init();
-  wifi_create_task();
-  mqtt_create_task();
+  //wifi_init();
+  //mqtt_init();
 }

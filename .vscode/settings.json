@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "zshrc": "shellscript",
+        "config.h": "c",
+        "esp_system.h": "c"
+    }
+}

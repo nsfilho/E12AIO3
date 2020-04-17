@@ -9,7 +9,7 @@ static const char *TAG = "mqtt.c";
 
 static EventGroupHandle_t mqtt_event_group;
 
-void mqtt_create_task()
+void mqtt_init()
 {
     mqtt_event_group = xEventGroupCreate();
     xTaskCreate(mqtt_loop_task, "mqtt_loop", 2048, NULL, 5, NULL);

@@ -16,12 +16,13 @@
 #include "lwip/netdb.h"
 #include "esp_log.h"
 #include "wifi.h"
+#include "config.h"
 
 static const char *TAG = "wifi.c";
 
-#define WIFI_CONNECTED BIT0
-#define WIFI_SCANNING BIT1
-#define WIFI_WAS_IP BIT2
+const uint8_t WIFI_CONNECTED = BIT0;
+const uint8_t WIFI_SCANNING = BIT1;
+const uint8_t WIFI_CONNECTING = BIT1;
 
 static EventGroupHandle_t wifi_event_group;
 
@@ -35,9 +36,28 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     case SYSTEM_EVENT_STA_START:
         esp_wifi_connect();
         break;
+    case SYSTEM_EVENT_SCAN_DONE:
+        ESP_LOGI(TAG, "Scan finished");
+        xEventGroupClearBits(wifi_event_group, WIFI_SCANNING);
+        wifi_check_available_networks();
+        break;
     case SYSTEM_EVENT_STA_GOT_IP:
+        ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
         xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED);
-
+        break;
+    case SYSTEM_EVENT_AP_STAIPASSIGNED:
+        ESP_LOGI(TAG, "assigned ip:%s",
+                 ip4addr_ntoa(&event->event_info.ap_staipassigned.ip));
+        break;
+    case SYSTEM_EVENT_AP_STACONNECTED:
+        ESP_LOGI(TAG, "station:" MACSTR " join, AID=%d",
+                 MAC2STR(event->event_info.sta_connected.mac),
+                 event->event_info.sta_connected.aid);
+        break;
+    case SYSTEM_EVENT_AP_STADISCONNECTED:
+        ESP_LOGI(TAG, "station:" MACSTR "leave, AID=%d",
+                 MAC2STR(event->event_info.sta_disconnected.mac),
+                 event->event_info.sta_disconnected.aid);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
         ESP_LOGE(TAG, "Disconnect reason : %d", info->disconnected.reason);
@@ -55,37 +75,51 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     return ESP_OK;
 }
 
-void wifi_create_task()
+void wifi_scan_network()
 {
-    tcpip_adapter_init();
-    wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    // wifi_scan_config_t l_config = {
+    //     .ssid = 0,
+    //     .bssid = 0,
 
-    // Default network to connect
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = CONFIG_WIFI_SSID,
-            .password = CONFIG_WIFI_PASSWORD,
-        },
-    };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-    ESP_LOGI(TAG, "start the WIFI SSID:[%s]", CONFIG_WIFI_SSID);
-    ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_LOGI(TAG, "Waiting for wifi");
-    // xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
-    xTaskCreate(wifi_create_task, "wifi_task", 2048, NULL, 5, NULL);
+    // };
+    // xEventGroupSetBits(wifi_event_group, WIFI_SCANNING);
+    // ESP_ERROR_CHECK(esp_wifi_scan_start(&l_config, false));
 }
 
-void wifi_loop_task(void *pvParameters)
+void wifi_check_available_networks()
 {
-    for (;;)
-    {
-        ESP_LOGI(TAG, "Networking checking...");
-        vTaskDelay((2 * 60 * 1000) / portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
+    // bool l_found = false;
+    // const char *l_findNetwork = (const char *)&(config_wifi->sta.ssid);
+    // uint16_t l_numAvailbleNetworks;
+    // ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&l_numAvailbleNetworks));
+    // for (uint16_t x = 0; x < l_numAvailbleNetworks; x++)
+    // {
+    //     wifi_ap_record_t net;
+    //     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&x, &net));
+    //     ESP_LOGI(TAG, "[%d] Network SSID: %s, signal: %d", x, net.ssid, net.rssi);
+    //     if (strcmp(l_findNetwork, (const char *)&net.ssid) == 0)
+    //         l_found = true;
+    // }
+    // if (l_found)
+    // {
+    //     ESP_LOGI(TAG, "Configured WiFi is available, connecting...");
+    //     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    //     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, config_wifi));
+    //     ESP_ERROR_CHECK(esp_wifi_start());
+    // }
+}
+
+void wifi_init()
+{
+    // wifi_event_group = xEventGroupCreate();
+
+    // tcpip_adapter_init();
+    // ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
+    // wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    // ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    // ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+
+    // // Waiting until all configs are loaded.
+    // xEventGroupWaitBits(config_event_group, CONFIG_LOADED, pdFALSE, pdTRUE, portMAX_DELAY);
+    // wifi_scan_network();
 }
