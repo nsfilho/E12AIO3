@@ -6,7 +6,7 @@
 #include "cJSON.h"
 
 const char *TAG = "config.c";
-const char ESP_NAME[15];
+static char ESP_NAME[33];
 
 const char *config_file = "/spiffs/config.json";
 
@@ -23,8 +23,8 @@ void config_init()
 void config_name()
 {
     uint8_t l_mac[6];
-    esp_wifi_get_mac(WIFI_IF_STA, &l_mac);
-    snprintf(ESP_NAME, 16, "e12aio_%02X%02X%02X", l_mac[3], l_mac[4], l_mac[5]);
+    esp_wifi_get_mac(WIFI_IF_STA, l_mac);
+    snprintf(ESP_NAME, sizeof(ESP_NAME), "e12aio_%02X%02X%02X", l_mac[3], l_mac[4], l_mac[5]);
     ESP_LOGI(TAG, "Name: %s", ESP_NAME);
 }
 
@@ -61,8 +61,8 @@ void config_load()
     if (stat(config_file, &st) == 0)
     {
         // Config file exists
-        ESP_LOGI(TAG, "File: /spiffs/config.json, size: %d", st.st_size);
-        char l_buffer = malloc(st.st_size + 1);
+        ESP_LOGI(TAG, "File: /spiffs/config.json, size: %li", st.st_size);
+        char *l_buffer = malloc(st.st_size + 1);
         FILE *fp = fopen(config_file, "r");
         if (fp == NULL)
         {
