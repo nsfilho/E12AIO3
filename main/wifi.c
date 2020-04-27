@@ -19,12 +19,7 @@
 #include "config.h"
 
 static const char *TAG = "wifi.c";
-
-const uint8_t WIFI_CONNECTED = BIT0;
-const uint8_t WIFI_SCANNING = BIT1;
-const uint8_t WIFI_CONNECTING = BIT1;
-
-static EventGroupHandle_t wifi_event_group;
+static EventGroupHandle_t g_wifi_event_group;
 
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
@@ -38,12 +33,12 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         break;
     case SYSTEM_EVENT_SCAN_DONE:
         ESP_LOGI(TAG, "Scan finished");
-        xEventGroupClearBits(wifi_event_group, WIFI_SCANNING);
+        xEventGroupClearBits(g_wifi_event_group, D_WIFI_SCANNING);
         wifi_check_available_networks();
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
         ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-        xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED);
+        xEventGroupSetBits(g_wifi_event_group, D_WIFI_CONNECTED);
         break;
     case SYSTEM_EVENT_AP_STAIPASSIGNED:
         ESP_LOGI(TAG, "assigned ip:%s",
@@ -67,7 +62,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
             esp_wifi_set_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCAL_11B | WIFI_PROTOCAL_11G | WIFI_PROTOCAL_11N);
         }
         esp_wifi_connect();
-        xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED);
+        xEventGroupClearBits(g_wifi_event_group, D_WIFI_CONNECTED);
         break;
     default:
         break;
@@ -111,15 +106,14 @@ void wifi_check_available_networks()
 
 void wifi_init()
 {
-    // wifi_event_group = xEventGroupCreate();
+    g_wifi_event_group = xEventGroupCreate();
 
-    // tcpip_adapter_init();
-    // ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
-    // wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    // ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    // ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
-    // // Waiting until all configs are loaded.
-    // xEventGroupWaitBits(config_event_group, CONFIG_LOADED, pdFALSE, pdTRUE, portMAX_DELAY);
-    // wifi_scan_network();
+    // Waiting until all configs are loaded.
+    // xEventGroupWaitBits(g_config_event_group, D_CONFIG_LOADED, pdFALSE, pdTRUE, portMAX_DELAY);
 }

@@ -1,5 +1,12 @@
 menu "E12AIO3 Config"
 
+config SAVE_LAZY_TIMEOUT
+    int "Waiting time to save config (ms)"
+    default 10000
+    help
+        Time to wait before save configuration in miliseconds. This is important
+        because avoid to write many times the configuration for quickly changes.
+
 config WIFI_SSID
     string "WiFi SSID"
     default "myssid"

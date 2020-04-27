@@ -1,4 +1,4 @@
-set(COMPONENT_SRCS "e12aio.c wifi.c mqtt.c config.c")
+set(COMPONENT_SRCS "wifi.c" "config.c" "e12aio.c" "e12aio.c wifi.c mqtt.c config.c")
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 register_component()

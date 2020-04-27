@@ -1,6 +1,7 @@
 /**
  * E12AIO3 Board (c) 2020-04
  * Nelio Santos <nsfilho@icloud.com>
+ * 
  */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -18,7 +19,7 @@ static const char *TAG = "e12aio.c";
 
 void app_main()
 {
-  ESP_LOGI(TAG, "[APP] Startup..");
+  ESP_LOGI(TAG, "[APP] Starting...");
   ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
   ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
@@ -30,7 +31,8 @@ void app_main()
     ret = nvs_flash_init();
   }
   ESP_ERROR_CHECK(ret);
+
   config_init();
-  //wifi_init();
+  wifi_init();
   //mqtt_init();
 }
