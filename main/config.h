@@ -25,3 +25,4 @@ void config_load_inMemory(const char *buffer);
 void config_save();
 void config_lazy_save();
 size_t config_save_inMemory(config_t data, char *buffer, size_t sz);
+void config_dump();

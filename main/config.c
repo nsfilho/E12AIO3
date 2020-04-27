@@ -113,6 +113,7 @@ void config_lazy_save_task(void *args)
     vTaskDelay(CONFIG_SAVE_LAZY_TIMEOUT / portTICK_PERIOD_MS);
     config_save();
     xEventGroupClearBits(g_config_event_group, D_CONFIG_DELAYED_SAVE);
+    ESP_LOGD(TAG, "Config saved (lazy)!");
     vTaskDelete(NULL);
 }
 
@@ -123,8 +124,13 @@ void config_lazy_save()
 {
     if (!(xEventGroupGetBits(g_config_event_group) & D_CONFIG_DELAYED_SAVE))
     {
+        ESP_LOGD(TAG, "Creating a lazy saving task");
         xEventGroupSetBits(g_config_event_group, D_CONFIG_DELAYED_SAVE);
         xTaskCreate(config_lazy_save_task, "config_lazy_save", 2048, NULL, 1, NULL);
+    }
+    else
+    {
+        ESP_LOGD(TAG, "A lazy saving task already started!");
     }
 }
 
@@ -223,4 +229,19 @@ size_t config_save_inMemory(config_t data, char *buffer, size_t sz)
     snprintf(buffer, sz, "%s", cJSON_Print(json));
     cJSON_Delete(json);
     return strlen(buffer);
+}
+
+void config_dump()
+{
+    ESP_LOGD(TAG, "WIFI - SSID: %s", g_config.wifi_ssid);
+    ESP_LOGD(TAG, "WIFI - Password: %s", g_config.wifi_password);
+    ESP_LOGD(TAG, "MQTT - URL: %s", g_config.mqtt_url);
+    ESP_LOGD(TAG, "Relay - Port 1: %s", g_config.relay1 ? "true" : "false");
+    ESP_LOGD(TAG, "Relay - Port 2: %s", g_config.relay2 ? "true" : "false");
+    ESP_LOGD(TAG, "Relay - Port 3: %s", g_config.relay3 ? "true" : "false");
+}
+
+void config_wait_loaded()
+{
+    xEventGroupWaitBits(g_config_event_group, D_CONFIG_LOADED, pdFALSE, pdTRUE, portMAX_DELAY);
 }

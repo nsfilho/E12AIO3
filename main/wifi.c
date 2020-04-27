@@ -115,5 +115,5 @@ void wifi_init()
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
     // Waiting until all configs are loaded.
-    // xEventGroupWaitBits(g_config_event_group, D_CONFIG_LOADED, pdFALSE, pdTRUE, portMAX_DELAY);
+    config_wait_loaded();
 }
