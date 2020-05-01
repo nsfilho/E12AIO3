@@ -2,6 +2,8 @@
     "files.associations": {
         "zshrc": "shellscript",
         "config.h": "c",
-        "esp_system.h": "c"
+        "esp_system.h": "c",
+        "*.tcc": "cpp",
+        "event_groups.h": "c"
     }
 }

@@ -1,5 +1,11 @@
 menu "E12AIO3 Config"
 
+config JSON_BUFFER_SIZE
+    int "JSON Buffer Size (bytes)"
+    default 512
+    help
+        Size of json buffer to manipulate config file.
+
 config SAVE_LAZY_TIMEOUT
     int "Waiting time to save config (ms)"
     default 10000
@@ -25,12 +31,26 @@ config WIFI_AP_PASSWORD
     help
         WiFi password used in recovery network
 
+config WIFI_AP_MAX_STA_CONN
+    int "WiFi AP Max Simultaneous Connection"
+    default 4
+    help
+        Maximum simultaneons connections to SoftAP mode to recovery.
+        Important: maximum supported is 4.
+
 config WIFI_SCAN_RETRY
-    int "WiFi Rescan Timeout"
-    default 120
+    int "WiFi Rescan Timeout (ms)"
+    default 120000
     help
         This configuration permits you to define the time between scans for know
         networks to retry connections (when droped).
+
+config WIFI_SCAN_MAX_NETWORKS
+    int "WiFi max networks to retrieve in scan"
+    default 20
+    help
+        Maximum number os records to return after a network scan to verify if exists
+        any knows network.
 
 config MQTT_URL
     string "MQTT URL"
@@ -38,21 +58,27 @@ config MQTT_URL
     help
         URL of the broker to connect to
 
+config MQTT_TOPIC_BASE
+    string "MQTT Base for default topic"
+    default "/home/"
+    help
+        Base for default topic, which is concatenate with ESP Name. It is important
+        to remember to put a slash (/) at the end.
+
 config MQTT_KEEPALIVE_TIMEOUT
     int "MQTT Keep Alive"
     default 120
     help
         Number of seconds to send keep alive
 
-
 config WEB_AUTH_USERNAME
-    string "Auth Username"
+    string "Web Auth Username"
     default "admin"
     help
         Web authentication username
 
 config WEB_AUTH_PASSWORD
-    string "Auth Password"
+    string "Web Auth Password"
     default "password"
     help
         Web authentication password
