@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include "freertos/FreeRTOS.h"
+#include <string>
 
 #define D_CONFIG_LOADED BIT0
 #define D_CONFIG_SAVED BIT1
@@ -77,6 +77,7 @@ public:
 
     /** Read configuration values */
     config_t getValues();
+    void setRelayStatus(uint8_t relay, bool status);
     /** Update (from mqtt or web) configuration values */
     void updateValues(const char *buffer);
 };

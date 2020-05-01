@@ -27,7 +27,7 @@ static bool g_wifi_started = false;
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
     /* For accessing reason codes in case of disconnection */
-    system_event_info_t *info = &event->event_info;
+    system_event_info_t *l_info = &event->event_info;
 
     switch (event->event_id)
     {
@@ -59,8 +59,8 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
                  event->event_info.sta_disconnected.aid);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
-        ESP_LOGE(TAG, "STA: Disconnect reason : 0x%x", info->disconnected.reason);
-        if (info->disconnected.reason == WIFI_REASON_BASIC_RATE_NOT_SUPPORT)
+        ESP_LOGE(TAG, "STA: Disconnect reason : 0x%04x", l_info->disconnected.reason);
+        if (l_info->disconnected.reason == WIFI_REASON_BASIC_RATE_NOT_SUPPORT)
             ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCAL_11B | WIFI_PROTOCAL_11G | WIFI_PROTOCAL_11N));
         xEventGroupClearBits(g_wifi_event_group, D_WIFI_CONNECTED);
 
@@ -117,10 +117,10 @@ bool WIFIClass::networkAvailable()
     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&l_numAvailbleNetworks));
     for (uint16_t x = 0; x < l_numAvailbleNetworks; x++)
     {
-        const char *myNetwork = Config.getValues().wifi.ssid.c_str();
-        const char *ssid = reinterpret_cast<char *>(l_records[x].ssid);
-        ESP_LOGI(TAG, "SCAN: [%d] Network SSID: %s, signal: %d", x, ssid, l_records[x].rssi);
-        if (strcmp(myNetwork, ssid) == 0)
+        const char *l_clientSSID = Config.getValues().wifi.ssid.c_str();
+        const char *l_SSID = reinterpret_cast<char *>(l_records[x].ssid);
+        ESP_LOGI(TAG, "SCAN: [%d] Network SSID: %s, signal: %d", x, l_SSID, l_records[x].rssi);
+        if (strcmp(l_clientSSID, l_SSID) == 0)
             l_found = true;
     }
     return l_found;
@@ -128,20 +128,23 @@ bool WIFIClass::networkAvailable()
 
 void WIFIClass::checkNetwork(void *args)
 {
-    // Start AP Mode (when checking if a network is available)
+    // Start AP Mode
     WIFI.startAP();
-    bool isConnected = false;
-    for (; !isConnected;)
+
+    // Check until network is available
+    const uint16_t l_delay = CONFIG_WIFI_SCAN_RETRY / portTICK_PERIOD_MS;
+    bool l_isConnected = false;
+    for (; !l_isConnected;)
     {
-        isConnected = xEventGroupGetBits(g_wifi_event_group) & D_WIFI_CONNECTED;
-        if (!isConnected)
+        l_isConnected = xEventGroupGetBits(g_wifi_event_group) & D_WIFI_CONNECTED;
+        if (!l_isConnected)
         {
             if (WIFI.networkAvailable())
             {
                 ESP_LOGD(TAG, "STA: Trying to connect to %s", Config.getValues().wifi.ssid.c_str());
                 WIFI.startConnect();
             }
-            vTaskDelay((CONFIG_WIFI_SCAN_RETRY) / portTICK_PERIOD_MS);
+            vTaskDelay(l_delay);
         }
         else
         {
@@ -163,25 +166,25 @@ void WIFIClass::startAP()
     }
 
     xEventGroupSetBits(g_wifi_event_group, D_WIFI_AP_STARTED);
-    wifi_config_t conf_ap;
-    wifi_config_t conf_sta;
+    wifi_config_t l_conf_ap;
+    wifi_config_t l_conf_sta;
     ESP_LOGI(TAG, "AP: Starting mode, network [%s]", Config.getName().c_str());
-    memset(&conf_ap, 0, sizeof(wifi_config_t));
-    memset(&conf_sta, 0, sizeof(wifi_config_t));
+    memset(&l_conf_ap, 0, sizeof(wifi_config_t));
+    memset(&l_conf_sta, 0, sizeof(wifi_config_t));
     ESP_LOGD(TAG, "AP: SSID [%s], Password: [%s]", Config.getName().c_str(), CONFIG_WIFI_AP_PASSWORD);
-    strcpy(reinterpret_cast<char *>(conf_ap.ap.ssid), Config.getName().c_str());
-    strcpy(reinterpret_cast<char *>(conf_ap.ap.password), CONFIG_WIFI_AP_PASSWORD);
+    strcpy(reinterpret_cast<char *>(l_conf_ap.ap.ssid), Config.getName().c_str());
+    strcpy(reinterpret_cast<char *>(l_conf_ap.ap.password), CONFIG_WIFI_AP_PASSWORD);
     ESP_LOGD(TAG, "STA: SSID [%s], Password: [%s]", Config.getValues().wifi.ssid.c_str(), Config.getValues().wifi.password.c_str());
-    strcpy(reinterpret_cast<char *>(conf_sta.sta.ssid), Config.getValues().wifi.ssid.c_str());
-    strcpy(reinterpret_cast<char *>(conf_sta.sta.password), Config.getValues().wifi.password.c_str());
-    conf_ap.ap.max_connection = CONFIG_WIFI_AP_MAX_STA_CONN;
-    conf_ap.ap.beacon_interval = 100;
-    conf_ap.ap.ssid_hidden = 0;
-    conf_ap.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-    conf_ap.ap.channel = 0;
+    strcpy(reinterpret_cast<char *>(l_conf_sta.sta.ssid), Config.getValues().wifi.ssid.c_str());
+    strcpy(reinterpret_cast<char *>(l_conf_sta.sta.password), Config.getValues().wifi.password.c_str());
+    l_conf_ap.ap.max_connection = CONFIG_WIFI_AP_MAX_STA_CONN;
+    l_conf_ap.ap.beacon_interval = 100;
+    l_conf_ap.ap.ssid_hidden = 0;
+    l_conf_ap.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    l_conf_ap.ap.channel = 0;
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &conf_ap));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &conf_sta));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &l_conf_ap));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &l_conf_sta));
     ESP_ERROR_CHECK(esp_wifi_start());
     g_wifi_started = true;
 }

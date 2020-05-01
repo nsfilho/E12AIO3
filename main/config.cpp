@@ -62,27 +62,27 @@ std::string ConfigClass::getName()
 void ConfigClass::prepare_spiffs()
 {
     ESP_LOGI(TAG, "Initializing SPIFFS...");
-    esp_vfs_spiffs_conf_t conf = {
+    esp_vfs_spiffs_conf_t l_conf = {
         .base_path = "/spiffs",
         .partition_label = NULL,
         .max_files = 15,
         .format_if_mount_failed = true,
     };
 
-    esp_err_t ret = esp_vfs_spiffs_register(&conf);
-    if (ret != ESP_OK)
+    esp_err_t l_ret = esp_vfs_spiffs_register(&l_conf);
+    if (l_ret != ESP_OK)
     {
-        if (ret == ESP_FAIL)
+        if (l_ret == ESP_FAIL)
         {
             ESP_LOGE(TAG, "Failed to mount or format filesystem");
         }
-        else if (ret == ESP_ERR_NOT_FOUND)
+        else if (l_ret == ESP_ERR_NOT_FOUND)
         {
             ESP_LOGE(TAG, "Failed to find SPIFFS partition");
         }
         else
         {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(l_ret));
         }
         return;
     }
@@ -93,8 +93,8 @@ void ConfigClass::prepare_spiffs()
  */
 void ConfigClass::prepare_configs()
 {
-    struct stat st;
-    if (stat(g_config_file, &st) == 0)
+    struct stat l_st;
+    if (stat(g_config_file, &l_st) == 0)
     {
         // loading from system
         this->load();
@@ -102,13 +102,7 @@ void ConfigClass::prepare_configs()
     else
     {
         // Initialize the configuration with fabric defaults
-        g_config.wifi.ssid = CONFIG_WIFI_SSID;
-        g_config.wifi.password = CONFIG_WIFI_PASSWORD;
-        g_config.mqtt.url = CONFIG_MQTT_URL;
-        g_config.mqtt.topic = std::string(CONFIG_MQTT_TOPIC_BASE) + Config.getName();
-        g_config.relay.port1 = false,
-        g_config.relay.port2 = false,
-        g_config.relay.port3 = false,
+        this->loadInMemory("{}");
         this->lazySave();
     }
 }
@@ -146,61 +140,75 @@ void ConfigClass::load()
     // Config file exists
     ESP_LOGI(TAG, "Reading file: /spiffs/config.json");
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-    FILE *fp = fopen(g_config_file, "r");
-    if (fp == NULL)
+    FILE *l_fp = fopen(g_config_file, "r");
+    if (l_fp == NULL)
     {
         ESP_LOGE(TAG, "Failed to open file: %s for reading", g_config_file);
         return;
     }
-    fread(&l_buffer, 1, CONFIG_JSON_BUFFER_SIZE, fp);
-    fclose(fp);
+    fread(&l_buffer, 1, CONFIG_JSON_BUFFER_SIZE, l_fp);
+    fclose(l_fp);
     this->loadInMemory(l_buffer);
 }
 
 void ConfigClass::loadInMemory(const char *buffer)
 {
     // parse file
-    cJSON *json = cJSON_Parse(buffer);
-    cJSON *wifi = cJSON_GetObjectItem(json, "wifi");
-    if (wifi != NULL)
+    cJSON *l_json = cJSON_Parse(buffer);
+    cJSON *l_wifi = cJSON_GetObjectItem(l_json, "wifi");
+    if (l_wifi != NULL)
     {
-        cJSON *wifi_ssid = cJSON_GetObjectItem(wifi, "ssid");
-        cJSON *wifi_password = cJSON_GetObjectItem(wifi, "password");
-        g_config.wifi.ssid = wifi_ssid != NULL ? wifi_ssid->valuestring : CONFIG_WIFI_SSID;
-        g_config.wifi.password = wifi_password != NULL ? wifi_password->valuestring : CONFIG_WIFI_PASSWORD;
+        cJSON *l_wifi_ssid = cJSON_GetObjectItem(l_wifi, "ssid");
+        cJSON *l_wifi_password = cJSON_GetObjectItem(l_wifi, "password");
+        g_config.wifi.ssid = l_wifi_ssid != NULL ? l_wifi_ssid->valuestring : CONFIG_WIFI_SSID;
+        g_config.wifi.password = l_wifi_password != NULL ? l_wifi_password->valuestring : CONFIG_WIFI_PASSWORD;
     }
-    cJSON *mqtt = cJSON_GetObjectItem(json, "mqtt");
-    if (mqtt != NULL)
+    else
     {
-        cJSON *mqtt_url = cJSON_GetObjectItem(mqtt, "url");
-        cJSON *mqtt_topic = cJSON_GetObjectItem(mqtt, "topic");
-        g_config.mqtt.url = mqtt_url != NULL ? mqtt_url->valuestring : CONFIG_MQTT_URL;
-        g_config.mqtt.topic = mqtt_topic != NULL ? mqtt_topic->valuestring : (std::string(CONFIG_MQTT_TOPIC_BASE) + Config.getName()).c_str();
+        g_config.wifi.ssid = CONFIG_WIFI_SSID;
+        g_config.wifi.password = CONFIG_WIFI_PASSWORD;
     }
-    cJSON *relay = cJSON_GetObjectItem(json, "relay");
-    if (relay != NULL)
+    cJSON *l_mqtt = cJSON_GetObjectItem(l_json, "mqtt");
+    if (l_mqtt != NULL)
     {
-        cJSON *status = NULL;
-        uint8_t relay_counter = 1;
-        cJSON_ArrayForEach(status, relay)
+        cJSON *l_mqtt_url = cJSON_GetObjectItem(l_mqtt, "url");
+        cJSON *l_mqtt_topic = cJSON_GetObjectItem(l_mqtt, "topic");
+        g_config.mqtt.url = l_mqtt_url != NULL ? l_mqtt_url->valuestring : CONFIG_MQTT_URL;
+        g_config.mqtt.topic = l_mqtt_topic != NULL ? l_mqtt_topic->valuestring : CONFIG_MQTT_TOPIC_BASE;
+    }
+    else
+    {
+        g_config.mqtt.url = CONFIG_MQTT_URL;
+        g_config.mqtt.topic = CONFIG_MQTT_TOPIC_BASE;
+    }
+
+    cJSON *l_relay = cJSON_GetObjectItem(l_json, "relay");
+    g_config.relay.port1 = false;
+    g_config.relay.port2 = false;
+    g_config.relay.port3 = false;
+    if (l_relay != NULL)
+    {
+        cJSON *l_status = NULL;
+        uint8_t l_relay_counter = 1;
+        cJSON_ArrayForEach(l_status, l_relay)
         {
-            switch (relay_counter)
+            switch (l_relay_counter)
             {
             case 1:
-                g_config.relay.port1 = cJSON_IsTrue(status);
+                g_config.relay.port1 = cJSON_IsTrue(l_status);
                 break;
             case 2:
-                g_config.relay.port2 = cJSON_IsTrue(status);
+                g_config.relay.port2 = cJSON_IsTrue(l_status);
                 break;
             case 3:
-                g_config.relay.port3 = cJSON_IsTrue(status);
+                g_config.relay.port3 = cJSON_IsTrue(l_status);
                 break;
             }
-            relay_counter++;
+            l_relay_counter++;
         }
     }
     ESP_LOGI(TAG, "Config loaded!");
-    cJSON_Delete(json);
+    cJSON_Delete(l_json);
 }
 
 /**
@@ -208,16 +216,16 @@ void ConfigClass::loadInMemory(const char *buffer)
  */
 void ConfigClass::save()
 {
-    char buffer[CONFIG_JSON_BUFFER_SIZE];
-    FILE *fp = fopen(g_config_file, "w+");
-    if (fp == NULL)
+    char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+    FILE *l_fp = fopen(g_config_file, "w+");
+    if (l_fp == NULL)
     {
         ESP_LOGE(TAG, "Failed to write file: %s", g_config_file);
         return;
     }
-    this->saveInMemory(g_config, buffer, CONFIG_JSON_BUFFER_SIZE);
-    fprintf(fp, "%s", buffer);
-    fclose(fp);
+    this->saveInMemory(g_config, l_buffer, CONFIG_JSON_BUFFER_SIZE);
+    fprintf(l_fp, "%s", l_buffer);
+    fclose(l_fp);
     xEventGroupClearBits(g_eventGroup, D_CONFIG_DELAYED_SAVE);
 }
 
@@ -245,9 +253,9 @@ size_t ConfigClass::saveInMemory(config_t data, char *buffer, size_t sz)
     cJSON_AddItemToArray(relay, port2);
     cJSON_AddItemToArray(relay, port3);
     cJSON_AddItemToObject(json, "relay", relay);
-    const uint16_t size = snprintf(buffer, sz, "%s", cJSON_Print(json));
+    const uint16_t l_size = snprintf(buffer, sz, "%s", cJSON_Print(json));
     cJSON_Delete(json);
-    return size;
+    return l_size;
 }
 
 void ConfigClass::dump()
@@ -277,6 +285,22 @@ void ConfigClass::updateValues(const char *buffer)
 {
     this->loadInMemory(buffer);
     this->save();
+}
+
+void ConfigClass::setRelayStatus(uint8_t relay, bool status)
+{
+    switch (relay)
+    {
+    case 1:
+        g_config.relay.port1 = status;
+        break;
+    case 2:
+        g_config.relay.port2 = status;
+        break;
+    case 3:
+        g_config.relay.port3 = status;
+        break;
+    }
 }
 
 ConfigClass Config;

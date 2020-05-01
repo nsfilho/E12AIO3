@@ -60,14 +60,20 @@ config MQTT_URL
 
 config MQTT_TOPIC_BASE
     string "MQTT Base for default topic"
-    default "/home/"
+    default "home/"
     help
         Base for default topic, which is concatenate with ESP Name. It is important
         to remember to put a slash (/) at the end.
 
+config MQTT_RETRY_TIMEOUT
+    int "MQTT Retry (ms)"
+    default 120000
+    help
+        Number of seconds to retry connect with MQTT
+
 config MQTT_KEEPALIVE_TIMEOUT
-    int "MQTT Keep Alive"
-    default 120
+    int "MQTT Keep Alive (ms)"
+    default 120000
     help
         Number of seconds to send keep alive
 
