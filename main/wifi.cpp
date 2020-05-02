@@ -199,4 +199,11 @@ bool WIFIClass::isConnected()
     return (xEventGroupGetBits(g_wifi_event_group) & D_WIFI_CONNECTED);
 }
 
+char *WIFIClass::getStationIP()
+{
+    tcpip_adapter_ip_info_t ip;
+    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
+    return inet_ntoa(ip.ip);
+}
+
 WIFIClass WIFI;

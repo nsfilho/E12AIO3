@@ -14,17 +14,18 @@ private:
     bool getRelayStatus(uint8_t relay);
     void subscribeRelay(uint8_t relay);
     size_t buildRelaySetTopic(uint8_t relay, char *buffer, size_t sz);
+    void hassConfigSensors();
 
 public:
     MQTTClass();
     void init();
     static void loop(void *arg);
     static void keepAlive(void *arg);
+    void sendKeepAlive();
     void connect();
     void disconnect();
     bool isConnected();
     void sendOnline();
-    void sendAlive();
     void received(const char *topic, const char *payload);
 };
 

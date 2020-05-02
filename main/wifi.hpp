@@ -10,12 +10,13 @@ class WIFIClass
 public:
     WIFIClass();
     void init();
-    void startConnect();
     void startAP();
+    void startConnect();
     static void checkNetwork(void *args);
     bool networkAvailable();
     bool isAPModeActive();
     bool isConnected();
+    char *getStationIP();
 };
 
 extern WIFIClass WIFI;
