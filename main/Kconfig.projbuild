@@ -75,7 +75,13 @@ config MQTT_KEEPALIVE_TIMEOUT
     int "MQTT Keep Alive (ms)"
     default 120000
     help
-        Number of seconds to send keep alive
+        Number of miliseconds to send keep alive
+
+config MQTT_DELAY_RUSH_PACKAGE
+    int "MQTT Delay for publish rush (ms)"
+    default 200
+    help
+        Numer of miliseconds to wait before send another package.
 
 config WEB_AUTH_USERNAME
     string "Web Auth Username"

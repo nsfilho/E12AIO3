@@ -249,6 +249,11 @@ void ConfigClass::save()
     xEventGroupClearBits(g_eventGroup, D_CONFIG_DELAYED_SAVE);
 }
 
+size_t ConfigClass::saveInMemory(char *buffer, size_t sz)
+{
+    return this->saveInMemory(g_config, buffer, sz);
+}
+
 size_t ConfigClass::saveInMemory(config_t data, char *buffer, size_t sz)
 {
     // Generate a clear config.json

@@ -85,6 +85,9 @@ public:
     void save();
     /** Save all changes after certain amount of time */
     void lazySave();
+
+    /** Save all configs (in use) in a buffer (generate json) */
+    size_t saveInMemory(char *buffer, size_t sz);
     /** Save all configs in a buffer (generate json) */
     size_t saveInMemory(config_t data, char *buffer, size_t sz);
     /** Dumping all knowed configurations */

@@ -33,6 +33,7 @@ private:
     void sendRelayStatus(uint8_t relay);
     bool getRelayStatus(uint8_t relay);
     void subscribeRelay(uint8_t relay);
+    void subscribeActions();
     size_t buildRelaySetTopic(uint8_t relay, char *buffer, size_t sz);
     void hassConfigSensors();
 

@@ -20,6 +20,7 @@
  */
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
+#include "esp_system.h"
 #include "string"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -183,6 +184,7 @@ void MQTTClass::keepAlive(void *arg)
  */
 void MQTTClass::sendKeepAlive()
 {
+    const uint16_t l_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
     const char *topic = Config.getValues().mqtt.topic.c_str();
     const char *name = Config.getName().c_str();
     char l_topic[D_TOPIC_SIZE];
@@ -195,21 +197,25 @@ void MQTTClass::sendKeepAlive()
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/uptime", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "%02d:%02d:%02d", hour, min % 60, sec % 60);
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 
     // ipaddr
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/ipaddr", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "%s", WIFI.getStationIP());
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 
     // model
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/model", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "E12-AIO3");
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 
     // build timestamp
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/build", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "%s", __TIMESTAMP__);
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 }
 
 /**
@@ -296,6 +302,9 @@ size_t MQTTClass::buildRelaySetTopic(uint8_t relay, char *buffer, size_t sz)
  * home/sensor/e12aio3_CC9900/build/config
  * { "name": "e12aio3_CC9900_build", "stat_t": "home/sensor/e12aio3_CC9900/build" }
  * 
+ * home/sensor/e12aio3_CC9900/freemem/config
+ * { "name": "e12aio3_CC9900_freemem", "stat_t": "home/sensor/e12aio3_CC9900/freemem" }
+ * 
  */
 void MQTTClass::hassConfigSensors()
 {
@@ -303,26 +312,37 @@ void MQTTClass::hassConfigSensors()
     const char *name = Config.getName().c_str();
     char l_topic[D_TOPIC_SIZE];
     char l_payload[CONFIG_JSON_BUFFER_SIZE];
+    const uint16_t l_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
 
     // uptime
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/uptime/config", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "{ \"name\": \"%s_uptime\", \"stat_t\": \"%ssensor/%s/uptime\" }", name, topic, name);
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 
     // ipaddr
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/ipaddr/config", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "{ \"name\": \"%s_ipaddr\", \"stat_t\": \"%ssensor/%s/ipaddr\" }", name, topic, name);
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 
     // model
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/model/config", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "{ \"name\": \"%s_model\", \"stat_t\": \"%ssensor/%s/model\" }", name, topic, name);
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 
     // build timestamp
     snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/build/config", topic, name);
     snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "{ \"name\": \"%s_build\", \"stat_t\": \"%ssensor/%s/build\" }", name, topic, name);
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
+
+    // free mem
+    snprintf(l_topic, D_TOPIC_SIZE, "%ssensor/%s/freemem/config", topic, name);
+    snprintf(l_payload, CONFIG_JSON_BUFFER_SIZE, "{ \"name\": \"%s_freemem\", \"stat_t\": \"%ssensor/%s/freemem\" }", name, topic, name);
+    esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    vTaskDelay(l_delay);
 }
 
 /**
@@ -335,13 +355,16 @@ void MQTTClass::hassConfigSensors()
  */
 void MQTTClass::sendOnline()
 {
+    const uint16_t l_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
     this->hassConfigSensors();
     for (uint8_t l_x = 1; l_x < 4; l_x++)
     {
         this->subscribeRelay(l_x);
         this->hassConfigRelay(l_x);
         this->sendRelayStatus(l_x);
+        vTaskDelay(l_delay);
     }
+    this->subscribeActions();
     this->sendKeepAlive();
 }
 
@@ -356,23 +379,84 @@ bool MQTTClass::isConnected()
 
 /**
  * Process any received message from MQTT Server
+ * 
+ * Sample topics, payloads:
+ * home/switch/e12aio3_CC9900/relay1/set, ON
+ * home/switch/e12aio3_CC9900/relay2/set, ON
+ * home/switch/e12aio3_CC9900/relay3/set, ON
+ * home/action/e12aio3_CC9900/config/set, { ...config json...}
+ * home/action/e12aio3_CC9900/config/get, json
+ * home/action/e12aio3_CC9900/scan/get, json
+ * home/action/e12aio3_CC9900/restart/set, yes
+ * 
  * @param topic subscribed topic who received the message payload
  * @param payload payload message buffer
  */
 void MQTTClass::received(const char *topic, const char *payload)
 {
     ESP_LOGD(TAG, "Topic: %s, payload [%s]", topic, payload);
-    char l_topic[D_TOPIC_SIZE];
-    for (uint8_t l_x = 1; l_x < 4; l_x++)
+    std::string l_relayTopics = Config.getValues().mqtt.topic + "switch/" + Config.getName() + "/relay";
+    std::string l_actionConfig = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/config";
+    std::string l_actionScan = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/scan/get";
+    std::string l_actionRestart = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/restart/set";
+
+    if (strncmp(topic, l_relayTopics.c_str(), l_relayTopics.length()) == 0)
     {
-        this->buildRelaySetTopic(l_x, l_topic, D_TOPIC_SIZE);
-        if (strncmp(topic, l_topic, strlen(l_topic)) == 0)
+        char l_topic[D_TOPIC_SIZE];
+        for (uint8_t l_x = 1; l_x < 4; l_x++)
         {
-            bool l_status = strcmp(payload, "ON") == 0;
-            Relay.setStatus(l_x, l_status);
-            this->sendRelayStatus(l_x);
+            this->buildRelaySetTopic(l_x, l_topic, D_TOPIC_SIZE);
+            if (strncmp(topic, l_topic, strlen(l_topic)) == 0)
+            {
+                bool l_status = strcmp(payload, "ON") == 0;
+                Relay.setStatus(l_x, l_status);
+                this->sendRelayStatus(l_x);
+            }
         }
     }
+    else if (strncmp(topic, l_actionConfig.c_str(), l_actionConfig.length()) == 0)
+    {
+        std::string l_actionConfig_set = l_actionConfig + "/set";
+        if (strncmp(topic, l_actionConfig_set.c_str(), l_actionConfig_set.length()) == 0)
+        {
+            // set config
+            Config.loadInMemory(payload);
+            Config.lazySave();
+        }
+        else
+        {
+            // get config
+            char buffer[CONFIG_JSON_BUFFER_SIZE];
+            Config.saveInMemory(buffer, CONFIG_JSON_BUFFER_SIZE);
+            esp_mqtt_client_publish(this->m_client, l_actionConfig.c_str(), buffer, strlen(buffer), 1, 0);
+        }
+    }
+    else if (strncmp(topic, l_actionScan.c_str(), l_actionScan.length()) == 0)
+    {
+        // scan networks and send
+        // TODO: needs to be implement
+    }
+    else if (strncmp(topic, l_actionRestart.c_str(), l_actionRestart.length()) == 0)
+    {
+        // restart
+        esp_restart();
+    }
+}
+
+void MQTTClass::subscribeActions()
+{
+    const uint16_t l_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
+    std::string l_actionConfig = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/config";
+    std::string l_actionScan = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/scan/get";
+    std::string l_actionRestart = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/restart/set";
+    esp_mqtt_client_subscribe(this->m_client, (l_actionConfig + "/set").c_str(), 1);
+    vTaskDelay(l_delay);
+    esp_mqtt_client_subscribe(this->m_client, (l_actionConfig + "/get").c_str(), 1);
+    vTaskDelay(l_delay);
+    esp_mqtt_client_subscribe(this->m_client, l_actionScan.c_str(), 1);
+    vTaskDelay(l_delay);
+    esp_mqtt_client_subscribe(this->m_client, l_actionRestart.c_str(), 1);
+    vTaskDelay(l_delay);
 }
 
 MQTTClass MQTT;
