@@ -1,3 +1,23 @@
+/**
+ * E12AIO3 Firmware
+ * Copyright (C) 2020 E01-AIO Automação Ltda.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * Author: Nelio Santos <nsfilho@icloud.com>
+ * Repository: https://github.com/nsfilho/E12AIO3
+ */
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "string"
@@ -10,23 +30,26 @@
 
 static const char *TAG = "mqtt.c";
 static EventGroupHandle_t g_mqtt_event_group;
-static char g_mqtt_url[D_TOPIC_SIZE];
+static char g_mqttUrl[D_TOPIC_SIZE];
 
+/**
+ * Handle MQTT Events inside the stack
+ * @param event Event details
+ */
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
     switch (event->event_id)
     {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        xEventGroupSetBits(g_mqtt_event_group, D_MQTT_CONNECTED);
         MQTT.sendOnline();
+        xEventGroupSetBits(g_mqtt_event_group, D_MQTT_CONNECTED);
         xTaskCreate(MQTT.keepAlive, "mqtt_keepalive", 2048, NULL, 2, NULL);
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
         xEventGroupClearBits(g_mqtt_event_group, D_MQTT_CONNECTED);
         break;
-
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
         break;
@@ -57,33 +80,68 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     return ESP_OK;
 }
 
+/**
+ * Setup MQTT Class
+ */
 MQTTClass::MQTTClass()
 {
     g_mqtt_event_group = xEventGroupCreate();
 }
 
+/**
+ * Main initialization, generally called in app_main after priority tasks.
+ */
 void MQTTClass::init()
 {
+    this->updateConfig();
     xTaskCreate(MQTT.loop, "mqtt_loop", 2048, NULL, 5, NULL);
 }
 
+/**
+ * Routine called after any configuration update. Most of the time, it is a callback function.
+ */
+void MQTTClass::updateConfig()
+{
+    // g_mqttUrl Example: mqtt://user:pass@host:port
+    snprintf(g_mqttUrl, D_TOPIC_SIZE, "%s", Config.getValues().mqtt.url.c_str());
+    // g_baseTopic Example: home%s/e12aio3_CC9900/%s
+    // snprintf(g_baseTopic, D_TOPIC_SIZE, "%s\%s/%s/\%s", Config.getValues().mqtt.topic.c_str(), Config.getName().c_str());
+
+    // Rebind all subscriptions and topics
+    if (MQTT.isConnected())
+    {
+        MQTT.disconnect();
+        MQTT.connect();
+    }
+}
+
+/**
+ * Connect to a MQTT Server
+ */
 void MQTTClass::connect()
 {
     ESP_LOGD(TAG, "MQTT: Connecting");
-    snprintf(g_mqtt_url, D_TOPIC_SIZE, "%s", Config.getValues().mqtt.url.c_str());
     esp_mqtt_client_config_t mqtt_cfg = {};
     mqtt_cfg.event_handle = mqtt_event_handler;
-    mqtt_cfg.uri = g_mqtt_url;
+    mqtt_cfg.uri = g_mqttUrl;
     this->m_client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_start(this->m_client);
 }
 
+/**
+ * Disconnect from a MQTT Server
+ */
 void MQTTClass::disconnect()
 {
     ESP_LOGD(TAG, "MQTT: Disconnecting");
     esp_mqtt_client_stop(this->m_client);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 }
 
+/**
+ * FreeRTOS Task to monitor WiFi Sate versus MQTT State.
+ * @param arg context FreeRTOS argument
+ */
 void MQTTClass::loop(void *arg)
 {
     const uint16_t delay = CONFIG_MQTT_RETRY_TIMEOUT / portTICK_PERIOD_MS;
@@ -99,6 +157,10 @@ void MQTTClass::loop(void *arg)
     vTaskDelete(NULL);
 }
 
+/**
+ * FreeRTOS Task: Maintain a KeepAlive to Home Assistant
+ * @param arg context FreeRTOS argument 
+ */
 void MQTTClass::keepAlive(void *arg)
 {
     const uint16_t delay = (CONFIG_MQTT_KEEPALIVE_TIMEOUT) / portTICK_PERIOD_MS;
@@ -111,6 +173,14 @@ void MQTTClass::keepAlive(void *arg)
     vTaskDelete(NULL);
 }
 
+/**
+ * Send all keepAlive topics to MQTT (used by Home Assistant).
+ * Sample Topics and payloads:
+ * home/sensor/e12aio3_CC9900/uptime, 00:01:03
+ * home/sensor/e12aio3_CC9900/ipaddr, 10.10.10.10
+ * home/sensor/e12aio3_CC9900/model, E12-AIO3
+ * home/sensor/e12aio3_CC9900/build, Fri May 1 23:38:48 2020
+ */
 void MQTTClass::sendKeepAlive()
 {
     const char *topic = Config.getValues().mqtt.topic.c_str();
@@ -142,6 +212,17 @@ void MQTTClass::sendKeepAlive()
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
 }
 
+/**
+ * Send a switch configuration to home assistant, based on each relay.
+ * Sample Topic: home/switch/e12aio3_CC9900/relay1/config, payload:
+ * { 
+ *   "~": "home/switch/e12aio3_CC9900/relay1", 
+ *   "cmd_t": "~/set", 
+ *   "stat_t": "~", 
+ *   "name": "e12aio3_CC9900_relay1" 
+ * }
+ * @param relay relay number from 1 to 3
+ */
 void MQTTClass::hassConfigRelay(uint8_t relay)
 {
     // present as switch (relay1, relay2, relay3)
@@ -155,6 +236,11 @@ void MQTTClass::hassConfigRelay(uint8_t relay)
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
 }
 
+/**
+ * Send relay status to mqtt
+ * Sample topic: home/switch/e12aio3_CC9900/relay1, payload: ON
+ * @param relay relay number from 1 to 3
+ */
 void MQTTClass::sendRelayStatus(uint8_t relay)
 {
     const char *topic = Config.getValues().mqtt.topic.c_str();
@@ -165,6 +251,12 @@ void MQTTClass::sendRelayStatus(uint8_t relay)
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload.c_str(), l_payload.length(), 1, 0);
 }
 
+/**
+ * Subscribe in each relay topics
+ * Sample topic: home/switch/e12aio3_CC9900/relay1/set
+ * 
+ * @param relay relay number from 1 to 3
+ */
 void MQTTClass::subscribeRelay(uint8_t relay)
 {
     char l_topic[D_TOPIC_SIZE];
@@ -172,6 +264,15 @@ void MQTTClass::subscribeRelay(uint8_t relay)
     esp_mqtt_client_subscribe(this->m_client, l_topic, 1);
 }
 
+/**
+ * Generate a `set topic` for each relay
+ * Sample topic: home/switch/e12aio3_CC9900/relay1/set
+ * 
+ * @param relay relay number from 1 to 3
+ * @param buffer a char[] buffer to receive the result
+ * @param sz a char[] size
+ * @return length of buffer
+ */
 size_t MQTTClass::buildRelaySetTopic(uint8_t relay, char *buffer, size_t sz)
 {
     const char *topic = Config.getValues().mqtt.topic.c_str();
@@ -179,6 +280,23 @@ size_t MQTTClass::buildRelaySetTopic(uint8_t relay, char *buffer, size_t sz)
     return snprintf(buffer, sz, "%sswitch/%s/relay%d/set", topic, name, relay);
 }
 
+/**
+ * Send a configuration for sensors to home assistant.
+ * Sample topics and payloads:
+ * 
+ * home/sensor/e12aio3_CC9900/uptime/config
+ * { "name": "e12aio3_CC9900_uptime", "stat_t": "home/sensor/e12aio3_CC9900/uptime" }
+ * 
+ * home/sensor/e12aio3_CC9900/ipaddr/config
+ * { "name": "e12aio3_CC9900_ipaddr", "stat_t": "home/sensor/e12aio3_CC9900/ipaddr" }
+ * 
+ * home/sensor/e12aio3_CC9900/model/config
+ * { "name": "e12aio3_CC9900_model", "stat_t": "home/sensor/e12aio3_CC9900/model" }
+ * 
+ * home/sensor/e12aio3_CC9900/build/config
+ * { "name": "e12aio3_CC9900_build", "stat_t": "home/sensor/e12aio3_CC9900/build" }
+ * 
+ */
 void MQTTClass::hassConfigSensors()
 {
     const char *topic = Config.getValues().mqtt.topic.c_str();
@@ -207,6 +325,14 @@ void MQTTClass::hassConfigSensors()
     esp_mqtt_client_publish(this->m_client, l_topic, l_payload, strlen(l_payload), 1, 0);
 }
 
+/**
+ * Function called when connect to a MQTT Server, for send many initial informations:
+ * 1. Configure Sensors
+ * 2. Subscribe in each relay topic
+ * 3. Configure in home assistant each relay topic
+ * 4. Send to mqtt (home assistant) each relay status
+ * 5. Send keepAlive: uptime, ipaddr, build, model
+ */
 void MQTTClass::sendOnline()
 {
     this->hassConfigSensors();
@@ -219,11 +345,20 @@ void MQTTClass::sendOnline()
     this->sendKeepAlive();
 }
 
+/**
+ * Check if it is connected to a MQTT Server
+ * @return connected?
+ */
 bool MQTTClass::isConnected()
 {
     return xEventGroupGetBits(g_mqtt_event_group) & D_MQTT_CONNECTED;
 }
 
+/**
+ * Process any received message from MQTT Server
+ * @param topic subscribed topic who received the message payload
+ * @param payload payload message buffer
+ */
 void MQTTClass::received(const char *topic, const char *payload)
 {
     ESP_LOGD(TAG, "Topic: %s, payload [%s]", topic, payload);
