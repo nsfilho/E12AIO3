@@ -28,6 +28,8 @@ Characteristcs from this board:
 -   Flash friendly (as describe in FAQ)
 -   3 relays (because it is a cold component -- you can use inside your wall conduit box).
 
+If you want to deep dive, you can see the [Schematic File](docs/Schematic_2020-05-03_09-55-35.pdf)
+
 ## Firmware
 
 Main features:
