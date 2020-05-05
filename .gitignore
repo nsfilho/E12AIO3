@@ -1,5 +1,7 @@
 .clangd
 build/
+tools/spiffs.bin
+tools/spiffs
 sdkconfig
 sdkconfig.old
 
