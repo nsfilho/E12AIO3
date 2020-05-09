@@ -18,7 +18,6 @@
  * Author: Nelio Santos <nsfilho@icloud.com>
  * Repository: https://github.com/nsfilho/E12AIO3
  */
-#include <iostream>
 #include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -52,7 +51,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     switch (event->event_id)
     {
     case SYSTEM_EVENT_STA_START:
-        ESP_LOGD(TAG, "STA: trying connect to AP...");
+        ESP_LOGI(TAG, "STA: trying connect to AP...");
         esp_wifi_connect();
         break;
     case SYSTEM_EVENT_SCAN_DONE:

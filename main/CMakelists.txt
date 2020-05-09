@@ -1,4 +1,4 @@
-set(COMPONENT_SRCS "relay.cpp" "config.cpp" "e12aio.cpp" "wifi.cpp" "mqtt.cpp" "relay.cpp")
+set(COMPONENT_SRCS "httpd.cpp" "relay.cpp" "config.cpp" "e12aio.cpp" "wifi.cpp" "mqtt.cpp" "relay.cpp")
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 register_component()
