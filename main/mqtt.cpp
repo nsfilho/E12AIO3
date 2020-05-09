@@ -105,8 +105,6 @@ void MQTTClass::updateConfig()
 {
     // g_mqttUrl Example: mqtt://user:pass@host:port
     snprintf(g_mqttUrl, D_TOPIC_SIZE, "%s", Config.getValues().mqtt.url.c_str());
-    // g_baseTopic Example: home%s/e12aio3_CC9900/%s
-    // snprintf(g_baseTopic, D_TOPIC_SIZE, "%s\%s/%s/\%s", Config.getValues().mqtt.topic.c_str(), Config.getName().c_str());
 
     // Rebind all subscriptions and topics
     if (MQTT.isConnected())

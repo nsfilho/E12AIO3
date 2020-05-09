@@ -19,13 +19,20 @@
  * Repository: https://github.com/nsfilho/E12AIO3
  */
 #pragma once
+#include <esp_http_server.h>
 
 class HTTPDClass
 {
+private:
+    httpd_handle_t m_server = NULL;
+    static esp_err_t spiffsHandler(httpd_req_t *req);
+
 public:
     HTTPDClass();
     void init();
     static void loop(void *arg);
+    void start();
+    void stop();
 };
 
 extern HTTPDClass HTTPD;

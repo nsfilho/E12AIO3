@@ -30,6 +30,7 @@
 #include "wifi.hpp"
 #include "mqtt.hpp"
 #include "relay.hpp"
+#include "httpd.hpp"
 
 static const char *TAG = "e12aio.c";
 
@@ -53,5 +54,6 @@ extern "C"
         WIFI.init();
         MQTT.init();
         Relay.init();
+        HTTPD.init();
     }
 }
