@@ -5,6 +5,31 @@ small board](https://easyeda.com/DIY-Maker-BR/placa-4-reles-esp12f)
 
 Project licensed under: GPLv3 for board and firmware.
 
+## License
+
+```txt
+
+ E12AIO3 Firmware
+ Copyright (C) 2020 E01-AIO Automação Ltda.
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ Author: Nelio Santos <nsfilho@icloud.com>
+ Repository: https://github.com/nsfilho/E12AIO3
+
+```
+
 ## Board
 
 The board comes with all components soldered from [JLCPCB](https://jlcpcb.com), when you bought with SMT Assembly Services. You need only

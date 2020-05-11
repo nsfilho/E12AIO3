@@ -65,6 +65,12 @@ config MQTT_TOPIC_BASE
         Base for default topic, which is concatenate with ESP Name. It is important
         to remember to put a slash (/) at the end.
 
+config MQTT_TOPIC_SIZE
+    int "Max topic size"
+    default 70
+    help
+        Max topic size name
+
 config MQTT_RETRY_TIMEOUT
     int "MQTT Retry (ms)"
     default 120000

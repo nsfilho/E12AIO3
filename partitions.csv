@@ -1,6 +1,29 @@
+#
+# E12AIO3 Firmware
+# Copyright (C) 2020 E01-AIO Automacao Ltda.
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# Author: Nelio Santos <nsfilho@icloud.com>
+# Repository: https://github.com/nsfilho/E12AIO3
+#
 # Name,   Type, SubType, Offset,  Size, Flags
-# Note: if you change the phy_init or app partition offset, make sure to change the offset in Kconfig.projbuild
-nvs,      data, nvs,     0x9000,  0x6000,
-phy_init, data, phy,     0xf000,  0x1000,
-factory,  app,  factory, 0x10000, 800K,
-storage,  data, spiffs,  ,        160K, 
+nvs,      data, nvs,      0x9000,   0x4000
+otadata,  data, ota,      0xd000,   0x2000
+phy_init, data, phy,      0xf000,   0x1000
+factory,  app,  factory,  0x10000,  1M
+ota_0,    app,  ota_0,    ,         1M
+ota_1,    app,  ota_1,    ,         1M
+storage,  data, spiffs,   ,         300K, 
+nvs_key,  data, nvs_keys, ,         0x1000

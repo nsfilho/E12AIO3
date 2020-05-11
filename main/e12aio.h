@@ -19,3 +19,5 @@
  * Repository: https://github.com/nsfilho/E12AIO3
  */
 #pragma once
+
+#define VERSION "2.0.0"
