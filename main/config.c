@@ -299,9 +299,9 @@ void e12aio_config_wait_load(const char *TAG)
     ESP_LOGD(TAG, "done, configuration was loaded...");
 }
 
-e12aio_config_t e12aio_config_get()
+e12aio_config_t *e12aio_config_get()
 {
-    return g_config;
+    return &g_config;
 }
 
 void e12aio_config_update_from_buffer(const char *buffer)

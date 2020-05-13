@@ -18,20 +18,18 @@
  * Author: Nelio Santos <nsfilho@icloud.com>
  * Repository: https://github.com/nsfilho/E12AIO3
  */
-#include "esp_log.h"
-#include "driver/gpio.h"
-#include "relay.hpp"
-#include "config.hpp"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <driver/gpio.h>
+#include <esp_log.h>
+#include "config.h"
+#include "relay.h"
 
 static const char *TAG = "relay.cpp";
 
-RelayClass::RelayClass()
+void e12aio_relay_init_task(void *arg)
 {
-}
-
-void RelayClass::init()
-{
-    ESP_LOGD(TAG, "Setup relay ports...");
+    ESP_LOGI(TAG, "Setting relay ports");
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
@@ -40,19 +38,26 @@ void RelayClass::init()
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
 
-    Config.waitUntilLoad(TAG);
+    e12aio_config_wait_load(TAG);
+    e12aio_config_t *l_config = e12aio_config_get();
     ESP_LOGI(TAG, "Initializing ports on previous state [%d,%d,%d]",
-             Config.getValues().relay.port1 ? 1 : 0,
-             Config.getValues().relay.port2 ? 1 : 0,
-             Config.getValues().relay.port3 ? 1 : 0);
-    gpio_set_level(RELAY1, Config.getValues().relay.port1 ? 1 : 0);
-    gpio_set_level(RELAY2, Config.getValues().relay.port2 ? 1 : 0);
-    gpio_set_level(RELAY3, Config.getValues().relay.port3 ? 1 : 0);
+             l_config->relay.port1 ? 1 : 0,
+             l_config->relay.port2 ? 1 : 0,
+             l_config->relay.port3 ? 1 : 0);
+    gpio_set_level(RELAY1, l_config->relay.port1 ? 1 : 0);
+    gpio_set_level(RELAY2, l_config->relay.port2 ? 1 : 0);
+    gpio_set_level(RELAY3, l_config->relay.port3 ? 1 : 0);
+    vTaskDelete(NULL);
 }
 
-void RelayClass::setStatus(uint8_t relay, bool status)
+void e12aio_relay_init()
 {
-    if (this->getStatus(relay) != status)
+    xTaskCreate(e12aio_relay_init_task, "relay_init", 2048, NULL, 5, NULL);
+}
+
+void e12aio_relay_set(uint8_t relay, bool status)
+{
+    if (e12aio_relay_get(relay) != status)
     {
         ESP_LOGD(TAG, "Changing relay [%d] to [%d]", relay, status ? 1 : 0);
         switch (relay)
@@ -67,27 +72,11 @@ void RelayClass::setStatus(uint8_t relay, bool status)
             gpio_set_level(RELAY3, status ? 1 : 0);
             break;
         }
-        Config.setRelayStatus(relay, status);
-        Config.lazySave();
+        e12aio_config_relay_set(relay, status);
     }
 }
 
-bool RelayClass::getStatus(uint8_t relay)
+bool e12aio_relay_get(uint8_t relay)
 {
-    bool l_status = false;
-    switch (relay)
-    {
-    case 1:
-        l_status = Config.getValues().relay.port1;
-        break;
-    case 2:
-        l_status = Config.getValues().relay.port2;
-        break;
-    case 3:
-        l_status = Config.getValues().relay.port3;
-        break;
-    }
-    return l_status;
+    return *e12aio_config_relay_pointer(relay);
 }
-
-RelayClass Relay;

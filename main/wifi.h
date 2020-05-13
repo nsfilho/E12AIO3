@@ -19,36 +19,20 @@
  * Repository: https://github.com/nsfilho/E12AIO3
  */
 #pragma once
-#include "mqtt_client.h"
 
-#define D_MQTT_CONNECTED BIT0
-#define D_TOPIC_SIZE 100
-#define D_PAYLOAD_SIZE 5
+#define E12AIO_WIFI_CONNECTED BIT0
+#define E12AIO_WIFI_SCANNING BIT1
+#define E12AIO_WIFI_SCANNING_DONE BIT2
+#define E12AIO_WIFI_AP_STARTED BIT3
 
-class MQTTClass
-{
-private:
-    esp_mqtt_client_handle_t m_client;
-    void hassConfigRelay(uint8_t relay);
-    void sendRelayStatus(uint8_t relay);
-    bool getRelayStatus(uint8_t relay);
-    void subscribeRelay(uint8_t relay);
-    void subscribeActions();
-    size_t buildRelaySetTopic(uint8_t relay, char *buffer, size_t sz);
-    void hassConfigSensors();
+void e12aio_wifi_init();
+void e12aio_wifi_check(void *args);
 
-public:
-    MQTTClass();
-    void init();
-    void updateConfig();
-    static void loop(void *arg);
-    static void keepAlive(void *arg);
-    void sendKeepAlive();
-    void connect();
-    void disconnect();
-    bool isConnected();
-    void sendOnline();
-    void received(const char *topic, const char *payload);
-};
+void e12aio_wifi_sta_connect();
+bool e12aio_wifi_sta_is_available();
+bool e12aio_wifi_sta_is_connected();
+char *e12aio_wifi_sta_get_ip();
+void e12aio_wifi_sta_wait_connect(const char *TAG);
 
-extern MQTTClass MQTT;
+void e12aio_wifi_ap_start();
+bool e12aio_wifi_ap_is_active();

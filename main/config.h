@@ -75,7 +75,7 @@ size_t e12aio_config_save_buffer(char *buffer, size_t sz);
 size_t e12aio_config_save_buffer_adv(e12aio_config_t data, char *buffer, size_t sz);
 void e12aio_config_dump();
 void e12aio_config_wait_load(const char *TAG);
-e12aio_config_t e12aio_config_get();
+e12aio_config_t *e12aio_config_get();
 void e12aio_config_update_from_buffer(const char *buffer);
 bool *e12aio_config_relay_pointer(uint8_t relay);
 void e12aio_config_relay_set(uint8_t relay, bool status);

@@ -6,7 +6,10 @@
         "*.tcc": "cpp",
         "event_groups.h": "c",
         "stat.h": "c",
-        "iosfwd": "c"
+        "iosfwd": "c",
+        "relay.h": "c",
+        "typeinfo": "c",
+        "mqtt_client.h": "c"
     },
     "idf.adapterTargetName": "esp32",
     "idf.openOcdConfigs": [

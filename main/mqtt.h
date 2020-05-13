@@ -20,23 +20,22 @@
  */
 #pragma once
 
-#define D_WIFI_CONNECTED BIT0
-#define D_WIFI_SCANNING BIT1
-#define D_WIFI_SCANNING_DONE BIT2
-#define D_WIFI_AP_STARTED BIT3
+#define E12AIO_MQTT_CONNECTED BIT0
+#define E12AIO_MQTT_DISCONNECTED BIT1
 
-class WIFIClass
-{
-public:
-    WIFIClass();
-    void init();
-    void startAP();
-    void startConnect();
-    static void checkNetwork(void *args);
-    bool networkAvailable();
-    bool isAPModeActive();
-    bool isConnected();
-    char *getStationIP();
-};
-
-extern WIFIClass WIFI;
+void e12aio_mqtt_init_task();
+void e12aio_mqtt_init();
+void e12aio_mqtt_restart();
+void e12aio_mqtt_connect();
+void e12aio_mqtt_disconnect();
+void e12aio_mqtt_online_send();
+void e12aio_mqtt_received(const char *topic, const char *payload);
+void e12aio_mqtt_subscribe_actions();
+void e12aio_mqtt_keep_alive_task(void *arg);
+void e12aio_mqtt_keep_alive_send();
+void e12aio_mqtt_relay_send_status(uint8_t relay);
+void e12aio_mqtt_relay_subscribe_status(uint8_t relay);
+size_t e12aio_mqtt_relay_topic_set(uint8_t relay, char *buffer, size_t sz);
+void e12aio_mqtt_hass_relay(uint8_t relay);
+void e12aio_mqtt_hass_sensors();
+bool e12aio_mqtt_is_connected();
