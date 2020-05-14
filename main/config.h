@@ -53,6 +53,13 @@ typedef struct
     bool port3;
 } e12aio_config_relays_t;
 
+typedef struct
+{
+    char token[CONFIG_WEB_AUTH_MAX_SIZE];
+    char username[CONFIG_WEB_AUTH_MAX_SIZE];
+    char password[CONFIG_WEB_AUTH_MAX_SIZE];
+} e12aio_config_httpd_t;
+
 /**
  * Union of all config information
  */
@@ -61,6 +68,7 @@ typedef struct
     e12aio_config_wifi_t wifi;
     e12aio_config_relays_t relay;
     e12aio_config_mqtt_t mqtt;
+    e12aio_config_httpd_t httpd;
 } e12aio_config_t;
 
 void e12aio_config_init();

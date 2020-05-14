@@ -27,6 +27,7 @@
 #include "wifi.h"
 #include "relay.h"
 #include "mqtt.h"
+#include "httpd.h"
 
 static const char *TAG = "e12aio.c";
 
@@ -50,6 +51,6 @@ void app_main()
     e12aio_config_init();
     e12aio_wifi_init();
     e12aio_relay_init();
-    // HTTPD.init();
     e12aio_mqtt_init();
+    e12aio_httpd_init();
 }

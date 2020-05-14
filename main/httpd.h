@@ -21,18 +21,9 @@
 #pragma once
 #include <esp_http_server.h>
 
-class HTTPDClass
-{
-private:
-    httpd_handle_t m_server = NULL;
-    static esp_err_t spiffsHandler(httpd_req_t *req);
+#define E12AIO_MAX_FILENAME 32
 
-public:
-    HTTPDClass();
-    void init();
-    static void loop(void *arg);
-    void start();
-    void stop();
-};
-
-extern HTTPDClass HTTPD;
+void e12aio_httpd_init();
+esp_err_t e12aio_httpd_spiffs_handler(httpd_req_t *req);
+void e12aio_httpd_start();
+void e12aio_httpd_stop();

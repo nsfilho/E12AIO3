@@ -176,6 +176,8 @@ void e12aio_config_load_from_buffer(const char *buffer)
 {
     // parse file
     cJSON *l_json = cJSON_Parse(buffer);
+
+    // WIFI Config
     cJSON *l_wifi = cJSON_GetObjectItem(l_json, "wifi");
     cJSON *l_wifi_ssid = NULL;
     cJSON *l_wifi_password = NULL;
@@ -187,6 +189,7 @@ void e12aio_config_load_from_buffer(const char *buffer)
     strncpy(g_config.wifi.ssid, l_wifi_ssid != NULL ? l_wifi_ssid->valuestring : CONFIG_WIFI_SSID, 32);
     strncpy(g_config.wifi.password, l_wifi_password != NULL ? l_wifi_password->valuestring : CONFIG_WIFI_PASSWORD, 64);
 
+    // MQTT Config
     cJSON *l_mqtt = cJSON_GetObjectItem(l_json, "mqtt");
     cJSON *l_mqtt_url = NULL;
     cJSON *l_mqtt_topic = NULL;
@@ -198,6 +201,7 @@ void e12aio_config_load_from_buffer(const char *buffer)
     strncpy(g_config.mqtt.url, l_mqtt_url != NULL ? l_mqtt_url->valuestring : CONFIG_MQTT_URL, 100);
     strncpy(g_config.mqtt.topic, l_mqtt_topic != NULL ? l_mqtt_topic->valuestring : CONFIG_MQTT_TOPIC_BASE, CONFIG_MQTT_TOPIC_SIZE);
 
+    // Relay Config
     cJSON *l_relay = cJSON_GetObjectItem(l_json, "relay");
     g_config.relay.port1 = false;
     g_config.relay.port2 = false;
@@ -223,7 +227,22 @@ void e12aio_config_load_from_buffer(const char *buffer)
             l_relay_counter++;
         }
     }
-    // TODO: create web auth configuration
+
+    // HTTPD Config
+    cJSON *l_httpd = cJSON_GetObjectItem(l_json, "httpd");
+    cJSON *l_httpd_username = NULL;
+    cJSON *l_httpd_password = NULL;
+    cJSON *l_httpd_token = NULL;
+    if (l_httpd != NULL)
+    {
+        l_httpd_username = cJSON_GetObjectItem(l_httpd, "username");
+        l_httpd_password = cJSON_GetObjectItem(l_httpd, "password");
+        l_httpd_token = cJSON_GetObjectItem(l_httpd, "token");
+    }
+    strncpy(g_config.httpd.username, l_httpd_username != NULL ? l_httpd_username->valuestring : CONFIG_WEB_AUTH_USERNAME, CONFIG_WEB_AUTH_MAX_SIZE);
+    strncpy(g_config.httpd.password, l_httpd_password != NULL ? l_httpd_password->valuestring : CONFIG_WEB_AUTH_PASSWORD, CONFIG_WEB_AUTH_MAX_SIZE);
+    strncpy(g_config.httpd.token, l_httpd_token != NULL ? l_httpd_token->valuestring : CONFIG_WEB_TOKEN, CONFIG_WEB_AUTH_MAX_SIZE);
+
     ESP_LOGI(TAG, "Config loaded!");
     cJSON_Delete(l_json);
 }
@@ -275,7 +294,14 @@ size_t e12aio_config_save_buffer_adv(e12aio_config_t data, char *buffer, size_t 
     cJSON_AddItemToArray(relay, port2);
     cJSON_AddItemToArray(relay, port3);
     cJSON_AddItemToObject(json, "relay", relay);
-    // TODO: implement web auth
+    cJSON *httpd = cJSON_CreateObject();
+    cJSON *username = cJSON_CreateString(data.httpd.username);
+    cJSON *password = cJSON_CreateString(data.httpd.password);
+    cJSON *token = cJSON_CreateString(data.httpd.token);
+    cJSON_AddItemToObject(httpd, "username", username);
+    cJSON_AddItemToObject(httpd, "password", password);
+    cJSON_AddItemToObject(httpd, "token", token);
+    cJSON_AddItemToObject(json, "httpd", httpd);
     strncpy(buffer, cJSON_Print(json), sz);
     cJSON_Delete(json);
     return strlen(buffer);

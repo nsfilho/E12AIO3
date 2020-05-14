@@ -131,13 +131,26 @@ menu "HTTPD Component"
         string "Web Auth Username"
         default "admin"
         help
-            Web authentication username
+            Web authentication username.
 
     config WEB_AUTH_PASSWORD
         string "Web Auth Password"
         default "password"
         help
-            Web authentication password
+            Web authentication password.
+
+    config WEB_TOKEN
+        string "Token for API"
+        default "87654321"
+        help
+            Token key used in API call.
+
+    config WEB_AUTH_MAX_SIZE
+        int "Max size for username, password and token"
+        default 24
+        help
+            Max size for username, password and token buffers.
+
 endmenu
 
 menu "Relay Component"
