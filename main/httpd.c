@@ -31,9 +31,13 @@
 #include <esp_log.h>
 #include <esp_spiffs.h>
 #include <mbedtls/base64.h>
+#include <cJSON.h>
+#include "e12aio.h"
 #include "config.h"
 #include "wifi.h"
+#include "mqtt.h"
 #include "httpd.h"
+#include "utils.h"
 
 #ifdef CONFIG_COMPONENT_HTTPD
 static const char *TAG = "httpd.cpp";
@@ -59,7 +63,14 @@ void e12aio_httpd_init()
 
 #ifdef CONFIG_COMPONENT_HTTPD
 
-bool e12aio_httpd_auth_ok(httpd_req_t *req)
+/**
+ * @brief Check if the basic auth informations are correctly (user and pass)
+ * @param req http request
+ * @return 
+ *      true if its valid
+ *      false to incorrect user/pass.
+ */
+bool e12aio_httpd_auth_valid(httpd_req_t *req)
 {
     size_t l_hdr_len = httpd_req_get_hdr_value_len(req, "Authorization");
     if (l_hdr_len == 0)
@@ -91,16 +102,30 @@ bool e12aio_httpd_auth_ok(httpd_req_t *req)
     return false;
 }
 
-esp_err_t e12aio_httpd_spiffs_handler(httpd_req_t *req)
+/**
+ * @brief This function handle all basic authentication needs. Showing form if it is necessary.
+ * @param req http request
+ * @return
+ *      true: valid user, you can continue
+ *      false: incorrect user/pass or not authenticated
+ */
+bool e12aio_httpd_auth_ok(httpd_req_t *req)
 {
-    // Check Authentication first
-    if (!e12aio_httpd_auth_ok(req))
+    if (!e12aio_httpd_auth_valid(req))
     {
         httpd_resp_set_hdr(req, "WWW-Authenticate", "Basic realm=\"Login Form\"");
         httpd_resp_set_status(req, "401 Unauthorized");
         httpd_resp_send(req, NULL, 0);
-        return ESP_OK;
+        return false;
     }
+    return true;
+}
+
+esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
+{
+    // Check Authentication first
+    if (!e12aio_httpd_auth_ok(req))
+        return ESP_OK;
 
     // Process request
     size_t readBytes = 0;
@@ -124,6 +149,96 @@ esp_err_t e12aio_httpd_spiffs_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t e12aio_httpd_handler_restart(httpd_req_t *req)
+{
+    if (!e12aio_httpd_auth_ok(req))
+        return ESP_OK;
+
+    static const char *l_static_resp = "{\"status\":\"ok\"}";
+    if (e12aio_config_lazy_started())
+        e12aio_config_save();
+    httpd_resp_send(req, l_static_resp, strlen(l_static_resp));
+    vTaskDelay(CONFIG_WEB_WAIT_BEFORE_RESTART / portTICK_PERIOD_MS);
+    esp_restart();
+    return ESP_OK;
+}
+
+esp_err_t e12aio_httpd_handler_status(httpd_req_t *req)
+{
+    // some 316 bytes a cada chamada (a memoria)
+    if (!e12aio_httpd_auth_ok(req))
+        return ESP_OK;
+    ESP_LOGD(TAG, "Creating status json");
+    cJSON *l_json = cJSON_CreateObject();
+    cJSON *l_json_status = cJSON_CreateString("ok");
+    cJSON_AddItemToObject(l_json, "status", l_json_status);
+
+    // Board Block
+    ESP_LOGD(TAG, "Creating status board");
+    char l_uptime[E12AIO_UTILS_UPTIME_SIZE];
+    e12aio_utils_uptime((char *)&l_uptime, E12AIO_UTILS_UPTIME_SIZE);
+    cJSON *l_board = cJSON_CreateObject();
+    cJSON *l_board_model = cJSON_CreateString("E12-AIO3");
+    cJSON *l_board_hostname = cJSON_CreateString(e12aio_config_get_name());
+    cJSON *l_board_build = cJSON_CreateString(E12AIO_VERSION);
+    cJSON *l_board_uptime = cJSON_CreateString(l_uptime);
+    cJSON_AddItemToObject(l_board, "model", l_board_model);
+    cJSON_AddItemToObject(l_board, "hostname", l_board_hostname);
+    cJSON_AddItemToObject(l_board, "build", l_board_build);
+    cJSON_AddItemToObject(l_board, "uptime", l_board_uptime);
+    cJSON_AddItemToObject(l_json, "board", l_board);
+
+    // Wifi block
+    ESP_LOGD(TAG, "Creating status wifi");
+    cJSON *l_wifi = cJSON_CreateObject();
+    cJSON *l_wifi_mode;
+    cJSON *l_wifi_status;
+    cJSON *l_wifi_ip = cJSON_CreateString(e12aio_wifi_get_ip());
+    cJSON *l_wifi_gateway = cJSON_CreateString(e12aio_wifi_get_gateway());
+    cJSON *l_wifi_netmask = cJSON_CreateString(e12aio_wifi_get_netmask());
+    if (e12aio_wifi_sta_is_connected())
+    {
+        l_wifi_mode = cJSON_CreateString("STA");
+        l_wifi_status = cJSON_CreateString("connected");
+    }
+    else
+    {
+        l_wifi_mode = cJSON_CreateString("AP_STA");
+        l_wifi_status = cJSON_CreateString("disconnected");
+    }
+    cJSON_AddItemToObject(l_wifi, "mode", l_wifi_mode);
+    cJSON_AddItemToObject(l_wifi, "status", l_wifi_status);
+    cJSON_AddItemToObject(l_wifi, "ip", l_wifi_ip);
+    cJSON_AddItemToObject(l_wifi, "gateway", l_wifi_gateway);
+    cJSON_AddItemToObject(l_wifi, "netmask", l_wifi_netmask);
+    cJSON_AddItemToObject(l_json, "wifi", l_wifi);
+
+    // MQTT Block
+    ESP_LOGD(TAG, "Creating status mqtt");
+    cJSON *l_mqtt = cJSON_CreateObject();
+    cJSON *l_mqtt_status = cJSON_CreateString(e12aio_mqtt_is_connected() ? "connected" : "disconnected");
+    cJSON_AddItemToObject(l_mqtt, "status", l_mqtt_status);
+    cJSON_AddItemToObject(l_json, "mqtt", l_mqtt);
+
+    // Return values (protect memory)
+    char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+    strncpy(l_buffer, cJSON_Print(l_json), CONFIG_JSON_BUFFER_SIZE);
+    cJSON_Delete(l_json);
+
+    ESP_LOGD(TAG, "JSON: %s", l_buffer);
+    httpd_resp_send(req, l_buffer, strlen(l_buffer));
+    return ESP_OK;
+}
+
+esp_err_t e12aio_httpd_handler_relay_set(httpd_req_t *req)
+{
+    if (!e12aio_httpd_auth_ok(req))
+        return ESP_OK;
+    char *l_buffer = "{\"status\":\"err\",\"message\":\"under development\"}";
+    httpd_resp_send(req, l_buffer, strlen(l_buffer));
+    return ESP_OK;
+}
+
 char *e12aio_httpd_userctx_add(char *value)
 {
     g_userctx_len++;
@@ -142,6 +257,80 @@ void e12aio_httpd_userctx_clear()
     g_userctx = NULL;
 }
 
+void e12aio_httpd_register_spiffs()
+{
+    // Open spiffs directory
+    DIR *dir = opendir("/spiffs");
+    if (dir == NULL)
+    {
+        ESP_LOGE(TAG, "Fail to open /spiffs directory.");
+        e12aio_httpd_stop();
+        return;
+    }
+
+    // List spiffs files and register as handler
+    struct dirent *de;
+    while ((de = readdir(dir)) != NULL)
+    {
+        char l_uri[E12AIO_MAX_FILENAME];
+        snprintf(l_uri, E12AIO_MAX_FILENAME, "/%s", de->d_name);
+        ESP_LOGD(TAG, "SPIFF File: %s", de->d_name);
+        httpd_uri_t l_uri_config = {
+            .uri = l_uri,
+            .method = HTTP_GET,
+            .handler = e12aio_httpd_handler_spiffs,
+            .user_ctx = e12aio_httpd_userctx_add(de->d_name),
+        };
+        httpd_register_uri_handler(g_server, &l_uri_config);
+    }
+    closedir(dir);
+}
+
+void e12aio_httpd_register_index()
+{
+    // Register base (/) handler
+    httpd_uri_t l_uri_config = {
+        .uri = "/",
+        .method = HTTP_GET,
+        .handler = e12aio_httpd_handler_spiffs,
+        .user_ctx = e12aio_httpd_userctx_add("index.html"),
+    };
+    httpd_register_uri_handler(g_server, &l_uri_config);
+}
+
+void e12aio_httpd_register_restart()
+{
+    // Register base (/) handler
+    httpd_uri_t l_uri_config = {
+        .uri = "/restart",
+        .method = HTTP_GET,
+        .handler = e12aio_httpd_handler_restart,
+    };
+    httpd_register_uri_handler(g_server, &l_uri_config);
+}
+
+void e12aio_httpd_register_status()
+{
+    // Register base (/) handler
+    httpd_uri_t l_uri_config = {
+        .uri = "/status",
+        .method = HTTP_GET,
+        .handler = e12aio_httpd_handler_status,
+    };
+    httpd_register_uri_handler(g_server, &l_uri_config);
+}
+
+void e12aio_httpd_register_relay_set()
+{
+    // Register base (/) handler
+    httpd_uri_t l_uri_config = {
+        .uri = "/relay",
+        .method = HTTP_GET,
+        .handler = e12aio_httpd_handler_relay_set,
+    };
+    httpd_register_uri_handler(g_server, &l_uri_config);
+}
+
 void e12aio_httpd_start()
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -152,41 +341,11 @@ void e12aio_httpd_start()
     {
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
-
-        // Open spiffs directory
-        DIR *dir = opendir("/spiffs");
-        if (dir == NULL)
-        {
-            ESP_LOGE(TAG, "Fail to open /spiffs directory.");
-            e12aio_httpd_stop();
-            return;
-        }
-
-        // List spiffs files and register as handler
-        struct dirent *de;
-        while ((de = readdir(dir)) != NULL)
-        {
-            char l_uri[E12AIO_MAX_FILENAME];
-            snprintf(l_uri, E12AIO_MAX_FILENAME, "/%s", de->d_name);
-            ESP_LOGD(TAG, "SPIFF File: %s", de->d_name);
-            httpd_uri_t l_uri_config = {
-                .uri = l_uri,
-                .method = HTTP_GET,
-                .handler = e12aio_httpd_spiffs_handler,
-                .user_ctx = e12aio_httpd_userctx_add(de->d_name),
-            };
-            httpd_register_uri_handler(g_server, &l_uri_config);
-        }
-        closedir(dir);
-
-        // Register base (/) handler
-        httpd_uri_t l_uri_config = {
-            .uri = "/",
-            .method = HTTP_GET,
-            .handler = e12aio_httpd_spiffs_handler,
-            .user_ctx = e12aio_httpd_userctx_add("index.html"),
-        };
-        httpd_register_uri_handler(g_server, &l_uri_config);
+        e12aio_httpd_register_spiffs();
+        e12aio_httpd_register_index();
+        e12aio_httpd_register_restart();
+        e12aio_httpd_register_status();
+        e12aio_httpd_register_relay_set();
     }
     else
     {

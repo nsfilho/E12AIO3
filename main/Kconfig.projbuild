@@ -150,7 +150,12 @@ menu "HTTPD Component"
         default 24
         help
             Max size for username, password and token buffers.
-
+    config WEB_WAIT_BEFORE_RESTART
+        int "Waiting time before restart (ms)"
+        default 5000
+        help
+            Waiting time before restart in miliseconds. This give time
+            to send for client the http answer.
 endmenu
 
 menu "Relay Component"

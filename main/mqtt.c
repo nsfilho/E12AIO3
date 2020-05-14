@@ -34,6 +34,7 @@
 #include "wifi.h"
 #include "relay.h"
 #include "mqtt.h"
+#include "utils.h"
 
 #ifdef CONFIG_COMPONENT_MQTT
 static const char *TAG = "mqtt.c";
@@ -270,10 +271,9 @@ void e12aio_mqtt_sensor_send(const char *name, const char *format, ...)
 void e12aio_mqtt_keep_alive_send()
 {
     // uptime
-    uint32_t sec = esp_timer_get_time() / 1000ULL / 1000ULL;
-    uint16_t min = sec / 60;
-    uint16_t hour = min / 60;
-    e12aio_mqtt_sensor_send("uptime", "%02d:%02d:%02d", hour, min % 60, sec % 60);
+    char l_buffer[E12AIO_UTILS_UPTIME_SIZE];
+    e12aio_utils_uptime((char *)&l_buffer, E12AIO_UTILS_UPTIME_SIZE);
+    e12aio_mqtt_sensor_send("uptime", l_buffer);
     e12aio_mqtt_sensor_send("ipaddr", "%s", e12aio_wifi_sta_get_ip());
     e12aio_mqtt_sensor_send("model", "E12-AIO3");
     e12aio_mqtt_sensor_send("build", E12AIO_VERSION);

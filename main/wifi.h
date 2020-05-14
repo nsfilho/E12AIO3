@@ -19,6 +19,7 @@
  * Repository: https://github.com/nsfilho/E12AIO3
  */
 #pragma once
+#include <esp_wifi.h>
 
 #define E12AIO_WIFI_CONNECTED BIT0
 #define E12AIO_WIFI_SCANNING BIT1
@@ -27,12 +28,23 @@
 
 void e12aio_wifi_init();
 void e12aio_wifi_check(void *args);
+char *e12aio_wifi_get_ip();
+char *e12aio_wifi_get_gateway();
+char *e12aio_wifi_get_netmask();
+char *e12aio_wifi_generic_get_ip(tcpip_adapter_if_t interface);
+char *e12aio_wifi_generic_get_gateway(tcpip_adapter_if_t interface);
+char *e12aio_wifi_generic_get_netmask(tcpip_adapter_if_t interface);
 
 void e12aio_wifi_sta_connect();
 bool e12aio_wifi_sta_is_available();
 bool e12aio_wifi_sta_is_connected();
 char *e12aio_wifi_sta_get_ip();
+char *e12aio_wifi_sta_get_gateway();
+char *e12aio_wifi_sta_get_netmask();
 void e12aio_wifi_sta_wait_connect(const char *TAG);
 
 void e12aio_wifi_ap_start();
 bool e12aio_wifi_ap_is_active();
+char *e12aio_wifi_ap_get_ip();
+char *e12aio_wifi_ap_get_gateway();
+char *e12aio_wifi_ap_get_netmask();

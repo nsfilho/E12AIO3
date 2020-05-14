@@ -19,7 +19,7 @@
 # Repository: https://github.com/nsfilho/E12AIO3
 #
 
-set(COMPONENT_SRCS "mqtt.c" "config.c" "wifi.c" "relay.c" "debug.c" "httpd.c" "e12aio.c")
+set(COMPONENT_SRCS "mqtt.c" "config.c" "wifi.c" "relay.c" "debug.c" "httpd.c" "utils.c" "e12aio.c")
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 register_component()

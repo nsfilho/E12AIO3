@@ -76,6 +76,7 @@ char *e12aio_config_get_name();
 void e12aio_config_prepare_spiffs();
 void e12aio_config_prepare_configs();
 void e12aio_config_lazy_save();
+bool e12aio_config_lazy_started();
 void e12aio_config_load();
 void e12aio_config_load_from_buffer(const char *buffer);
 void e12aio_config_save();

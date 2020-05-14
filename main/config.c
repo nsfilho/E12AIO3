@@ -134,8 +134,11 @@ void e12aio_config_prepare_configs()
 void e12aio_config_lazy_save_task(void *args)
 {
     vTaskDelay(CONFIG_SAVE_LAZY_TIMEOUT / portTICK_PERIOD_MS);
-    e12aio_config_save();
-    ESP_LOGD(TAG, "Config saved from lazy call");
+    if (xEventGroupGetBits(g_eventGroup) & E12AIO_CONFIG_DELAYED_SAVE)
+    {
+        e12aio_config_save();
+        ESP_LOGD(TAG, "Config saved from lazy call");
+    }
     vTaskDelete(NULL);
 }
 
@@ -323,6 +326,11 @@ void e12aio_config_wait_load(const char *TAG)
     ESP_LOGD(TAG, "waiting until all configuration is loaded...");
     xEventGroupWaitBits(g_eventGroup, E12AIO_CONFIG_LOADED, pdFALSE, pdTRUE, portMAX_DELAY);
     ESP_LOGD(TAG, "done, configuration was loaded...");
+}
+
+bool e12aio_config_lazy_started()
+{
+    return (xEventGroupGetBits(g_eventGroup) & E12AIO_CONFIG_DELAYED_SAVE);
 }
 
 e12aio_config_t *e12aio_config_get()

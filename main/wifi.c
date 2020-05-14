@@ -218,11 +218,76 @@ bool e12aio_wifi_sta_is_connected()
     return (xEventGroupGetBits(g_wifi_event_group) & E12AIO_WIFI_CONNECTED);
 }
 
-char *e12aio_wifi_sta_get_ip()
+char *e12aio_wifi_generic_get_ip(tcpip_adapter_if_t interface)
 {
     tcpip_adapter_ip_info_t ip;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
+    tcpip_adapter_get_ip_info(interface, &ip);
     return inet_ntoa(ip.ip);
+}
+
+char *e12aio_wifi_generic_get_gateway(tcpip_adapter_if_t interface)
+{
+    tcpip_adapter_ip_info_t ip;
+    tcpip_adapter_get_ip_info(interface, &ip);
+    return inet_ntoa(ip.gw);
+}
+
+char *e12aio_wifi_generic_get_netmask(tcpip_adapter_if_t interface)
+{
+    tcpip_adapter_ip_info_t ip;
+    tcpip_adapter_get_ip_info(interface, &ip);
+    return inet_ntoa(ip.netmask);
+}
+
+char *e12aio_wifi_sta_get_ip()
+{
+    return e12aio_wifi_generic_get_ip(TCPIP_ADAPTER_IF_STA);
+}
+
+char *e12aio_wifi_ap_get_ip()
+{
+    return e12aio_wifi_generic_get_ip(TCPIP_ADAPTER_IF_AP);
+}
+
+char *e12aio_wifi_sta_get_gateway()
+{
+    return e12aio_wifi_generic_get_gateway(TCPIP_ADAPTER_IF_STA);
+}
+
+char *e12aio_wifi_ap_get_gateway()
+{
+    return e12aio_wifi_generic_get_gateway(TCPIP_ADAPTER_IF_AP);
+}
+
+char *e12aio_wifi_sta_get_netmask()
+{
+    return e12aio_wifi_generic_get_netmask(TCPIP_ADAPTER_IF_STA);
+}
+
+char *e12aio_wifi_ap_get_netmask()
+{
+    return e12aio_wifi_generic_get_netmask(TCPIP_ADAPTER_IF_AP);
+}
+
+char *e12aio_wifi_get_ip()
+{
+    if (e12aio_wifi_sta_is_connected())
+        return e12aio_wifi_sta_get_ip();
+    return e12aio_wifi_ap_get_ip();
+}
+
+char *e12aio_wifi_get_gateway()
+{
+    if (e12aio_wifi_sta_is_connected())
+        return e12aio_wifi_sta_get_gateway();
+    return e12aio_wifi_ap_get_gateway();
+}
+
+char *e12aio_wifi_get_netmask()
+{
+    if (e12aio_wifi_sta_is_connected())
+        return e12aio_wifi_sta_get_netmask();
+    return e12aio_wifi_ap_get_netmask();
 }
 
 void e12aio_wifi_sta_wait_connect(const char *TAG)
