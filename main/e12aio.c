@@ -19,31 +19,16 @@
  * Repository: https://github.com/nsfilho/E12AIO3
  */
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 #include <nvs_flash.h>
 #include <esp_log.h>
-#include <esp_system.h>
 #include "e12aio.h"
+#include "debug.h"
 #include "config.h"
 #include "wifi.h"
 #include "relay.h"
 #include "mqtt.h"
 
-#define DEBUG_TASK
-
 static const char *TAG = "e12aio.c";
-
-#ifdef DEBUG_TASK
-void debug_task(void *arg)
-{
-    for (;;)
-    {
-        ESP_LOGW(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-    }
-    vTaskDelete(NULL);
-}
-#endif
 
 void nvs_init()
 {
@@ -60,12 +45,8 @@ void nvs_init()
 void app_main()
 {
     ESP_LOGI(TAG, "[APP] Starting E12-AIO3 Firmware...");
-    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
-    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     nvs_init();
-#ifdef DEBUG_TASK
-    xTaskCreate(debug_task, "debug_task", 2048, NULL, 1, NULL);
-#endif
+    e12aio_debug_init();
     e12aio_config_init();
     e12aio_wifi_init();
     e12aio_relay_init();

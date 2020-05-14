@@ -23,9 +23,12 @@
 #include <freertos/FreeRTOS.h>
 #include <driver/gpio.h>
 
-#define RELAY1 GPIO_NUM_14
-#define RELAY2 GPIO_NUM_12
-#define RELAY3 GPIO_NUM_13
+// #define RELAY1 GPIO_NUM_14
+// #define RELAY2 GPIO_NUM_12
+// #define RELAY3 GPIO_NUM_13
+#define RELAY1 CONFIG_RELAY_PORT1
+#define RELAY2 CONFIG_RELAY_PORT2
+#define RELAY3 CONFIG_RELAY_PORT3
 
 void e12aio_relay_init();
 void e12aio_relay_set(uint8_t relay, bool status);

@@ -1,104 +1,169 @@
 menu "E12AIO3 Config"
 
-config JSON_BUFFER_SIZE
-    int "JSON Buffer Size (bytes)"
-    default 512
-    help
-        Size of json buffer to manipulate config file.
+menu "Available Components"
+    config COMPONENT_HTTPD
+        bool "Enable HTTPD Component"
+        default true
+        help
+            Active the HTTPD component. Specially used to configure board.
 
-config SAVE_LAZY_TIMEOUT
-    int "Waiting time to save config (ms)"
-    default 10000
-    help
-        Time to wait before save configuration in miliseconds. This is important
-        because avoid to write many times the configuration for quickly changes.
+    config COMPONENT_MQTT
+        bool "Enable MQTT Component"
+        default true
+        help
+            Active the MQTT control component.
 
-config WIFI_SSID
-    string "WiFi SSID"
-    default "myssid"
-    help
-        SSID (network name) for the example to connect to.
+    config COMPONENT_RELAY
+        bool "Enable Relay Component"
+        default true
+        help
+            Active the relay control component.
+    config COMPONENT_OTA
+        bool "Enable OTA Component"
+        default false
+        help
+            Active the OTA control component / tasks.
+    config COMPONENT_DEBUG
+        bool "Enable Debug Component"
+        default false
+        help
+            Active the debug control component / tasks.
+endmenu
 
-config WIFI_PASSWORD
-    string "WiFi Password"
-    default "mypassword"
-    help
-        WiFi password (WPA or WPA2) for the example to use.
+menu "Config Component"
+    config JSON_BUFFER_SIZE
+        int "JSON Buffer Size (bytes)"
+        default 512
+        help
+            Size of json buffer to manipulate config file.
 
-config WIFI_AP_PASSWORD
-    string "WiFi Recovery Network Password"
-    default "password"
-    help
-        WiFi password used in recovery network
+    config SAVE_LAZY_TIMEOUT
+        int "Waiting time to save config (ms)"
+        default 10000
+        help
+            Time to wait before save configuration in miliseconds. This is important
+            because avoid to write many times the configuration for quickly changes.
+endmenu
 
-config WIFI_AP_MAX_STA_CONN
-    int "WiFi AP Max Simultaneous Connection"
-    default 4
-    help
-        Maximum simultaneons connections to SoftAP mode to recovery.
-        Important: maximum supported is 4.
+menu "WIFI Component"
+    config WIFI_SSID
+        string "Default WIFI SSID"
+        default "myssid"
+        help
+            SSID (network name) as default fabric configuration.
 
-config WIFI_SCAN_RETRY
-    int "WiFi Rescan Timeout (ms)"
-    default 120000
-    help
-        This configuration permits you to define the time between scans for know
-        networks to retry connections (when droped).
+    config WIFI_PASSWORD
+        string "Default WIFI Password"
+        default "mypassword"
+        help
+            WIFI password (WPA or WPA2) as default fabric configuration.
 
-config WIFI_SCAN_MAX_NETWORKS
-    int "WiFi max networks to retrieve in scan"
-    default 20
-    help
-        Maximum number os records to return after a network scan to verify if exists
-        any knows network.
+    config WIFI_AP_PASSWORD
+        string "WiFi Recovery Network Password"
+        default "password"
+        help
+            WiFi password used in recovery network
+    
+    config WIFI_AP_MAX_STA_CONN
+        int "WiFi AP Max Simultaneous Connection"
+        default 4
+        help
+            Maximum simultaneons connections to SoftAP mode to recovery.
+            Important: maximum supported is 4.
+    
+    config WIFI_SCAN_RETRY
+        int "WiFi Rescan Timeout (ms)"
+        default 120000
+        help
+            This configuration permits you to define the time between scans for know
+            networks to retry connections (when droped).
+    
+    config WIFI_SCAN_MAX_NETWORKS
+        int "WiFi max networks to retrieve in scan"
+        default 20
+        help
+            Maximum number os records to return after a network scan to verify if exists
+            any knows network.
+            
+endmenu 
 
-config MQTT_URL
-    string "MQTT URL"
-    default "mqtt://iot.eclipse.org"
-    help
-        URL of the broker to connect to
+menu "MQTT Component"
+    config MQTT_URL
+        string "MQTT URL"
+        default "mqtt://iot.eclipse.org"
+        help
+            URL of the broker to connect to
+    
+    config MQTT_TOPIC_BASE
+        string "MQTT Base for default topic"
+        default "home/"
+        help
+            Base for default topic, which is concatenate with ESP Name. It is important
+            to remember to put a slash (/) at the end.
+    
+    config MQTT_TOPIC_SIZE
+        int "Max topic size"
+        default 70
+        help
+            Max topic size name
+    
+    config MQTT_RETRY_TIMEOUT
+        int "MQTT Retry (ms)"
+        default 120000
+        help
+            Number of seconds to retry connect with MQTT
+    
+    config MQTT_KEEPALIVE_TIMEOUT
+        int "MQTT Keep Alive (ms)"
+        default 120000
+        help
+            Number of miliseconds to send keep alive
+    
+    config MQTT_DELAY_RUSH_PACKAGE
+        int "MQTT Delay for publish rush (ms)"
+        default 200
+        help
+            Numer of miliseconds to wait before send another package.    
+endmenu
 
-config MQTT_TOPIC_BASE
-    string "MQTT Base for default topic"
-    default "home/"
-    help
-        Base for default topic, which is concatenate with ESP Name. It is important
-        to remember to put a slash (/) at the end.
+menu "HTTPD Component"
+    config WEB_AUTH_USERNAME
+        string "Web Auth Username"
+        default "admin"
+        help
+            Web authentication username
 
-config MQTT_TOPIC_SIZE
-    int "Max topic size"
-    default 70
-    help
-        Max topic size name
+    config WEB_AUTH_PASSWORD
+        string "Web Auth Password"
+        default "password"
+        help
+            Web authentication password
+endmenu
 
-config MQTT_RETRY_TIMEOUT
-    int "MQTT Retry (ms)"
-    default 120000
-    help
-        Number of seconds to retry connect with MQTT
+menu "Relay Component"
+    config RELAY_PORT1
+        int "Relay Port 1 GPIO"
+        default 14
+        help
+            GPIO port for relay 1.
+    config RELAY_PORT2
+        int "Relay Port 2 GPIO"
+        default 12
+        help
+            GPIO port for relay 2.
+    config RELAY_PORT3
+        int "Relay Port 3 GPIO"
+        default 13
+        help
+            GPIO port for relay 3.        
+endmenu
 
-config MQTT_KEEPALIVE_TIMEOUT
-    int "MQTT Keep Alive (ms)"
-    default 120000
-    help
-        Number of miliseconds to send keep alive
-
-config MQTT_DELAY_RUSH_PACKAGE
-    int "MQTT Delay for publish rush (ms)"
-    default 200
-    help
-        Numer of miliseconds to wait before send another package.
-
-config WEB_AUTH_USERNAME
-    string "Web Auth Username"
-    default "admin"
-    help
-        Web authentication username
-
-config WEB_AUTH_PASSWORD
-    string "Web Auth Password"
-    default "password"
-    help
-        Web authentication password
+menu "Debug Component"
+    config DEBUG_INFO_DELAY
+        int "Delay for print information (ms)"
+        default 2000
+        help
+            Numer of miliseconds to wait before send another block of info to serial. 
+endmenu
 
 endmenu

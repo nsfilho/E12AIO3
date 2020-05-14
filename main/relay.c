@@ -25,6 +25,7 @@
 #include "config.h"
 #include "relay.h"
 
+#ifdef CONFIG_COMPONENT_RELAY
 static const char *TAG = "relay.cpp";
 
 void e12aio_relay_init_task(void *arg)
@@ -49,12 +50,16 @@ void e12aio_relay_init_task(void *arg)
     gpio_set_level(RELAY3, l_config->relay.port3 ? 1 : 0);
     vTaskDelete(NULL);
 }
+#endif
 
 void e12aio_relay_init()
 {
+#ifdef CONFIG_COMPONENT_RELAY
     xTaskCreate(e12aio_relay_init_task, "relay_init", 2048, NULL, 5, NULL);
+#endif
 }
 
+#ifdef CONFIG_COMPONENT_RELAY
 void e12aio_relay_set(uint8_t relay, bool status)
 {
     if (e12aio_relay_get(relay) != status)
@@ -80,3 +85,4 @@ bool e12aio_relay_get(uint8_t relay)
 {
     return *e12aio_config_relay_pointer(relay);
 }
+#endif

@@ -1,6 +1,6 @@
 #
 # E12AIO3 Firmware
-# Copyright (C) 2020 E01-AIO Automação Ltda.
+# Copyright (C) 2020 E01-AIO Automacao Ltda.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 # Repository: https://github.com/nsfilho/E12AIO3
 #
 
-set(COMPONENT_SRCS "mqtt.c" "config.c" "wifi.c" "relay.c" "e12aio.c")
+set(COMPONENT_SRCS "mqtt.c" "config.c" "wifi.c" "relay.c" "debug.c" "e12aio.c")
 set(COMPONENT_ADD_INCLUDEDIRS ".")
 
 register_component()

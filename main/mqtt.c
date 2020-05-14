@@ -35,10 +35,11 @@
 #include "relay.h"
 #include "mqtt.h"
 
+#ifdef CONFIG_COMPONENT_MQTT
 static const char *TAG = "mqtt.c";
-
 static EventGroupHandle_t g_mqtt_event_group;
 static esp_mqtt_client_handle_t g_client = NULL;
+
 const uint16_t g_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
 
 /**
@@ -94,23 +95,27 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     return ESP_OK;
 }
 
-void e12aio_mqtt_init_task()
+void e12aio_mqtt_init_task(void *arg)
 {
     ESP_LOGD(TAG, "mqtt init task called...");
     e12aio_config_wait_load(TAG);
     e12aio_mqtt_connect();
     vTaskDelete(NULL);
 }
+#endif
 
 /**
  * Main initialization, generally called in app_main after priority tasks.
  */
 void e12aio_mqtt_init()
 {
+#ifdef CONFIG_COMPONENT_MQTT
     g_mqtt_event_group = xEventGroupCreate();
     xTaskCreate(e12aio_mqtt_init_task, "mqtt_init", 2048, NULL, 5, NULL);
+#endif
 }
 
+#ifdef CONFIG_COMPONENT_MQTT
 /**
  * Routine called after any configuration update. Most of the time, it is a callback function.
  */
@@ -194,7 +199,7 @@ void e12aio_mqtt_keep_alive_task(void *arg)
  * @param index if greater -1, append this after "item" name.
  * @param method like get, set
  */
-size_t e12aio_mqtt_topic(char *buffer, size_t sz, const char *type, const char *item, uint8_t index, const char *method)
+size_t e12aio_mqtt_topic(char *buffer, size_t sz, const char *type, const char *item, int8_t index, const char *method)
 {
     const char *l_config_topic = e12aio_config_get()->mqtt.topic;
     const char *l_config_name = e12aio_config_get_name();
@@ -225,7 +230,7 @@ size_t e12aio_mqtt_hass_switch_config_payload(char *buffer, size_t sz, uint8_t r
 {
     const char *l_config_topic = e12aio_config_get()->mqtt.topic;
     const char *l_config_name = e12aio_config_get_name();
-    snprintf(l_payload, CONFIG_MQTT_TOPIC_SIZE,
+    snprintf(buffer, sz,
              "{ \"~\": \"%sswitch/%s/relay%d\", \"cmd_t\": \"~/set\", \"stat_t\": \"~\", \"name\": \"%s_relay_%d\" }",
              l_config_topic, l_config_name, relay, l_config_name, relay);
     return strlen(buffer);
@@ -272,7 +277,7 @@ void e12aio_mqtt_keep_alive_send()
     e12aio_mqtt_sensor_send("ipaddr", "%s", e12aio_wifi_sta_get_ip());
     e12aio_mqtt_sensor_send("model", "E12-AIO3");
     e12aio_mqtt_sensor_send("build", E12AIO_VERSION);
-    e12aio_mqtt_sensor_send("freemem", "%d" esp_get_free_heap_size());
+    e12aio_mqtt_sensor_send("freemem", "%d", esp_get_free_heap_size());
 }
 
 /**
@@ -303,14 +308,12 @@ void e12aio_mqtt_hass_relay(uint8_t relay)
  */
 void e12aio_mqtt_relay_send_status(uint8_t relay)
 {
-    // present as switch (relay1, relay2, relay3...)
-    const uint16_t l_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
     char l_payload[CONFIG_MQTT_TOPIC_SIZE];
     strncpy(l_payload, e12aio_relay_get(relay) ? "ON" : "OFF", CONFIG_MQTT_TOPIC_SIZE);
-    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay);
+    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, NULL);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
-    vTaskDelay(l_delay);
+    vTaskDelay(g_delay);
 }
 
 /**
@@ -386,53 +389,49 @@ bool e12aio_mqtt_is_connected()
  */
 void e12aio_mqtt_received(const char *topic, const char *payload)
 {
+    size_t l_len = 0;
+    char l_topic[CONFIG_MQTT_TOPIC_SIZE];
     ESP_LOGD(TAG, "Topic: %s, payload [%s]", topic, payload);
-    // std::string l_relayTopics = Config.getValues().mqtt.topic + "switch/" + Config.getName() + "/relay";
-    // std::string l_actionConfig = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/config";
-    // std::string l_actionScan = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/scan/get";
-    // std::string l_actionRestart = Config.getValues().mqtt.topic + "action/" + Config.getName() + "/restart/set";
-
-    // if (strncmp(topic, l_relayTopics.c_str(), l_relayTopics.length()) == 0)
-    // {
-    //     char l_topic[D_TOPIC_SIZE];
-    //     for (uint8_t l_x = 1; l_x < 4; l_x++)
-    //     {
-    //         this->buildRelaySetTopic(l_x, l_topic, D_TOPIC_SIZE);
-    //         if (strncmp(topic, l_topic, strlen(l_topic)) == 0)
-    //         {
-    //             bool l_status = strcmp(payload, "ON") == 0;
-    //             Relay.setStatus(l_x, l_status);
-    //             this->sendRelayStatus(l_x);
-    //         }
-    //     }
-    // }
-    // else if (strncmp(topic, l_actionConfig.c_str(), l_actionConfig.length()) == 0)
-    // {
-    //     std::string l_actionConfig_set = l_actionConfig + "/set";
-    //     if (strncmp(topic, l_actionConfig_set.c_str(), l_actionConfig_set.length()) == 0)
-    //     {
-    //         // set config
-    //         Config.loadInMemory(payload);
-    //         Config.lazySave();
-    //     }
-    //     else
-    //     {
-    //         // get config
-    //         char buffer[CONFIG_JSON_BUFFER_SIZE];
-    //         Config.saveInMemory(buffer, CONFIG_JSON_BUFFER_SIZE);
-    //         esp_mqtt_client_publish(this->m_client, l_actionConfig.c_str(), buffer, strlen(buffer), 1, 0);
-    //     }
-    // }
-    // else if (strncmp(topic, l_actionScan.c_str(), l_actionScan.length()) == 0)
-    // {
-    //     // scan networks and send
-    //     // TODO: needs to be implement
-    // }
-    // else if (strncmp(topic, l_actionRestart.c_str(), l_actionRestart.length()) == 0)
-    // {
-    //     // restart
-    //     esp_restart();
-    // }
+    if (strstr(topic, "/switch/") != NULL)
+    {
+#ifdef CONFIG_COMPONENT_RELAY
+        for (uint8_t l_x = 1; l_x < 4; l_x++)
+        {
+            l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", l_x, "set");
+            if (strncmp(topic, l_topic, l_len) == 0)
+            {
+                bool l_status = strcmp(payload, "ON") == 0;
+                e12aio_relay_set(l_x, l_status);
+                e12aio_mqtt_relay_send_status(l_x);
+            }
+        }
+#endif
+    }
+    else if (strstr(topic, "/action/") != NULL)
+    {
+        // test config/set
+        l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "set");
+        if (strncmp(topic, l_topic, l_len) == 0)
+        {
+            e12aio_config_load_from_buffer(payload);
+            e12aio_config_lazy_save();
+        }
+        // test config/get
+        l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "get");
+        if (strncmp(topic, l_topic, l_len) == 0)
+        {
+            char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+            e12aio_config_save_buffer(l_buffer, CONFIG_JSON_BUFFER_SIZE);
+            e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, NULL);
+            esp_mqtt_client_publish(g_client, l_topic, l_buffer, strlen(l_buffer), 1, 0);
+        }
+        // test restart/set
+        l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "restart", -1, "set");
+        if (strncmp(topic, l_topic, l_len) == 0)
+        {
+            esp_restart();
+        }
+    }
 }
 
 void e12aio_mqtt_subscribe_actions()
@@ -451,3 +450,5 @@ void e12aio_mqtt_subscribe_actions()
     esp_mqtt_client_subscribe(g_client, l_topic, 1);
     vTaskDelay(g_delay);
 }
+
+#endif
