@@ -43,9 +43,6 @@
 static const char *TAG = "httpd.cpp";
 static httpd_handle_t g_server = NULL;
 
-static char **g_userctx = NULL;
-static uint8_t g_userctx_len = 0;
-
 void e12aio_httpd_init_task(void *arg)
 {
     e12aio_config_wait_load(TAG);
@@ -76,14 +73,13 @@ bool e12aio_httpd_auth_valid(httpd_req_t *req)
     if (l_hdr_len == 0)
         return false;
 
-    // TODO: validate authentication
     char l_hdr_buff[l_hdr_len + 1];
     if (httpd_req_get_hdr_value_str(req, "Authorization", l_hdr_buff, l_hdr_len + 1) == ESP_OK)
     {
-        char *l_partType = strtok(l_hdr_buff, " ");
-        char *l_partAuth64 = strtok(NULL, " ");
         char l_decoded[50];
         size_t l_decodedSize;
+        char *l_partType = strtok(l_hdr_buff, " ");
+        char *l_partAuth64 = strtok(NULL, " ");
         ESP_LOGD(TAG, "Auth Type: %s - [%s]", l_partType, l_partAuth64);
         if (mbedtls_base64_decode((unsigned char *)&l_decoded, 50, &l_decodedSize, (unsigned char *)l_partAuth64, strlen(l_partAuth64)) == 0)
         {
@@ -127,11 +123,23 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
     if (!e12aio_httpd_auth_ok(req))
         return ESP_OK;
 
-    // Process request
-    size_t readBytes = 0;
+    size_t l_size = 0;
     char l_filename[E12AIO_MAX_FILENAME];
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-    snprintf(l_filename, E12AIO_MAX_FILENAME, "/spiffs/%s", (const char *)req->user_ctx);
+
+    // Check file name
+    l_size = httpd_req_get_url_query_len(req);
+    if (l_size > 0)
+    {
+        char l_query[E12AIO_MAX_FILENAME];
+        httpd_req_get_url_query_str(req, l_buffer, CONFIG_JSON_BUFFER_SIZE);
+        httpd_query_key_value(l_buffer, "file", l_query, E12AIO_MAX_FILENAME);
+        snprintf(l_filename, E12AIO_MAX_FILENAME, "/spiffs/%s", l_query);
+    }
+    else
+        strcpy(l_filename, "/spiffs/index.html");
+
+    // Process request
     ESP_LOGI(TAG, "Serving page file: %s", l_filename);
     FILE *l_fp = fopen(l_filename, "r");
     if (l_fp == NULL)
@@ -141,10 +149,11 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
     }
     do
     {
-        readBytes = fread(&l_buffer, 1, CONFIG_JSON_BUFFER_SIZE, l_fp);
-        httpd_resp_send_chunk(req, l_buffer, readBytes);
-    } while (readBytes == CONFIG_JSON_BUFFER_SIZE);
+        l_size = fread(&l_buffer, 1, CONFIG_JSON_BUFFER_SIZE, l_fp);
+        httpd_resp_send_chunk(req, l_buffer, l_size);
+    } while (l_size == CONFIG_JSON_BUFFER_SIZE);
     fclose(l_fp);
+
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;
 }
@@ -163,18 +172,22 @@ esp_err_t e12aio_httpd_handler_restart(httpd_req_t *req)
     return ESP_OK;
 }
 
+/**
+ * @brief Send a status json to client
+ * Sample: { "status": "ok", "board": { "model": "E12-AIO3", "hostname": "e12aio_CC8C20", "build": "2.0.0", "uptime": "00:11:52" }, "wifi": { "mode": "STA", "status": "connected", "ip": "10.15.197.199", "gateway": "10.15.20.1", "netmask": "255.255.0.0" }, "mqtt": { "status": "connected" } }
+ */
+
 esp_err_t e12aio_httpd_handler_status(httpd_req_t *req)
 {
     // some 316 bytes a cada chamada (a memoria)
     if (!e12aio_httpd_auth_ok(req))
         return ESP_OK;
-    ESP_LOGD(TAG, "Creating status json");
+
     cJSON *l_json = cJSON_CreateObject();
     cJSON *l_json_status = cJSON_CreateString("ok");
     cJSON_AddItemToObject(l_json, "status", l_json_status);
 
     // Board Block
-    ESP_LOGD(TAG, "Creating status board");
     char l_uptime[E12AIO_UTILS_UPTIME_SIZE];
     e12aio_utils_uptime((char *)&l_uptime, E12AIO_UTILS_UPTIME_SIZE);
     cJSON *l_board = cJSON_CreateObject();
@@ -189,7 +202,6 @@ esp_err_t e12aio_httpd_handler_status(httpd_req_t *req)
     cJSON_AddItemToObject(l_json, "board", l_board);
 
     // Wifi block
-    ESP_LOGD(TAG, "Creating status wifi");
     cJSON *l_wifi = cJSON_CreateObject();
     cJSON *l_wifi_mode;
     cJSON *l_wifi_status;
@@ -214,7 +226,6 @@ esp_err_t e12aio_httpd_handler_status(httpd_req_t *req)
     cJSON_AddItemToObject(l_json, "wifi", l_wifi);
 
     // MQTT Block
-    ESP_LOGD(TAG, "Creating status mqtt");
     cJSON *l_mqtt = cJSON_CreateObject();
     cJSON *l_mqtt_status = cJSON_CreateString(e12aio_mqtt_is_connected() ? "connected" : "disconnected");
     cJSON_AddItemToObject(l_mqtt, "status", l_mqtt_status);
@@ -222,10 +233,8 @@ esp_err_t e12aio_httpd_handler_status(httpd_req_t *req)
 
     // Return values (protect memory)
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-    strncpy(l_buffer, cJSON_Print(l_json), CONFIG_JSON_BUFFER_SIZE);
+    cJSON_PrintPreallocated(l_json, (char *)&l_buffer, CONFIG_JSON_BUFFER_SIZE, false);
     cJSON_Delete(l_json);
-
-    ESP_LOGD(TAG, "JSON: %s", l_buffer);
     httpd_resp_send(req, l_buffer, strlen(l_buffer));
     return ESP_OK;
 }
@@ -239,53 +248,6 @@ esp_err_t e12aio_httpd_handler_relay_set(httpd_req_t *req)
     return ESP_OK;
 }
 
-char *e12aio_httpd_userctx_add(char *value)
-{
-    g_userctx_len++;
-    g_userctx = realloc(g_userctx, sizeof(char *) * g_userctx_len);
-    g_userctx[g_userctx_len - 1] = strdup(value);
-    return g_userctx[g_userctx_len - 1];
-}
-
-void e12aio_httpd_userctx_clear()
-{
-    for (; g_userctx_len != 0; g_userctx_len--)
-    {
-        free(g_userctx[g_userctx_len]);
-    }
-    free(g_userctx);
-    g_userctx = NULL;
-}
-
-void e12aio_httpd_register_spiffs()
-{
-    // Open spiffs directory
-    DIR *dir = opendir("/spiffs");
-    if (dir == NULL)
-    {
-        ESP_LOGE(TAG, "Fail to open /spiffs directory.");
-        e12aio_httpd_stop();
-        return;
-    }
-
-    // List spiffs files and register as handler
-    struct dirent *de;
-    while ((de = readdir(dir)) != NULL)
-    {
-        char l_uri[E12AIO_MAX_FILENAME];
-        snprintf(l_uri, E12AIO_MAX_FILENAME, "/%s", de->d_name);
-        ESP_LOGD(TAG, "SPIFF File: %s", de->d_name);
-        httpd_uri_t l_uri_config = {
-            .uri = l_uri,
-            .method = HTTP_GET,
-            .handler = e12aio_httpd_handler_spiffs,
-            .user_ctx = e12aio_httpd_userctx_add(de->d_name),
-        };
-        httpd_register_uri_handler(g_server, &l_uri_config);
-    }
-    closedir(dir);
-}
-
 void e12aio_httpd_register_index()
 {
     // Register base (/) handler
@@ -293,7 +255,7 @@ void e12aio_httpd_register_index()
         .uri = "/",
         .method = HTTP_GET,
         .handler = e12aio_httpd_handler_spiffs,
-        .user_ctx = e12aio_httpd_userctx_add("index.html"),
+        .user_ctx = NULL,
     };
     httpd_register_uri_handler(g_server, &l_uri_config);
 }
@@ -341,7 +303,6 @@ void e12aio_httpd_start()
     {
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
-        e12aio_httpd_register_spiffs();
         e12aio_httpd_register_index();
         e12aio_httpd_register_restart();
         e12aio_httpd_register_status();
@@ -356,10 +317,7 @@ void e12aio_httpd_start()
 void e12aio_httpd_stop()
 {
     if (g_server != NULL)
-    {
-        e12aio_httpd_userctx_clear();
         httpd_stop(g_server);
-    }
 }
 
 #endif

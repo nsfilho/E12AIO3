@@ -305,7 +305,7 @@ size_t e12aio_config_save_buffer_adv(e12aio_config_t data, char *buffer, size_t 
     cJSON_AddItemToObject(httpd, "password", password);
     cJSON_AddItemToObject(httpd, "token", token);
     cJSON_AddItemToObject(json, "httpd", httpd);
-    strncpy(buffer, cJSON_Print(json), sz);
+    cJSON_PrintPreallocated(json, buffer, sz, false);
     cJSON_Delete(json);
     return strlen(buffer);
 }
