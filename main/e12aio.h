@@ -20,4 +20,4 @@
  */
 #pragma once
 
-#define E12AIO_VERSION "2.0.0"
+#define E12AIO_VERSION "2.0.1"
