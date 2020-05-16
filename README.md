@@ -66,6 +66,40 @@ Main features:
 -   ✓ Web API
 -   Physical GPIO: I2C Oled, Binary Sensor, Button Sensor (with debouncing) - _under development_
 
+## Flash your firmware
+
+**Method 1:** Exists two different ways to do that. First using the Espress IDF (as tooling), you can:
+
+```sh
+make all
+make erase_flash upload_spiffs flash
+```
+
+**Method 2:** Using `esptool.py`
+
+For install `esptool.py` you can use [PlatformIO CLI](https://docs.platformio.org/en/latest/core/installation.html).
+
+> Important: don't forget to put `PlatformIO` binary folder in your path.
+
+After install, you need prepare the environment, as showed bellow:
+
+```sh
+pio platform install espressif8266 --with-all-packages
+ls ~/.platformio/packages/tool-esptoolpy/
+```
+
+Now you are ready to flash, first download the files in [release](https://github.com/nsfilho/E12AIO3/releases) section, if you download in `zip` format, extract it.
+
+You need replace the following information, in the command bellow:
+
+1. **/dev/cu.SLAB_USBtoUART** for your serial-usb port;
+
+```sh
+python ~/.platformio/packages/tool-esptoolpy/esptool.py --port /dev/cu.SLAB_USBtoUART erase_flash
+python ~/.platformio/packages/tool-esptoolpy/esptool.py --port /dev/cu.SLAB_USBtoUART write_flash 0x310000 spiffs.bin
+python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp8266 --port /dev/cu.SLAB_USBtoUART --baud 921600 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 40m --flash_size 4MB 0xd000 ota_data_initial.bin 0x0000 bootloader.bin 0x10000 e12aio3.bin 0x8000 partitions.bin
+```
+
 ## FAQ
 
 ### Configure Home Assistant Auto Discovery
