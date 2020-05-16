@@ -9,7 +9,9 @@
         "iosfwd": "c",
         "relay.h": "c",
         "typeinfo": "c",
-        "mqtt_client.h": "c"
+        "mqtt_client.h": "c",
+        "random": "c",
+        "limits": "c"
     },
     "idf.adapterTargetName": "esp32",
     "idf.openOcdConfigs": [

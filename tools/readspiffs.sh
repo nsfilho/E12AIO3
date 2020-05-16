@@ -22,7 +22,7 @@
 
 # Retrieve from ESP8266 if is needed
 if [ ! -f spiffs.bin ] ; then
-    esptool.py --port $ESPPORT read_flash 0x310000 307200 spiffs.bin
+    esptool.py --port $ESPPORT read_flash 0x310000 512000 spiffs.bin
 fi
 
 # Remove old files

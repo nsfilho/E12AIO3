@@ -25,5 +25,5 @@ phy_init, data, phy,      0xf000,   0x1000
 factory,  app,  factory,  0x10000,  1M
 ota_0,    app,  ota_0,    ,         1M
 ota_1,    app,  ota_1,    ,         1M
-storage,  data, spiffs,   ,         300K, 
+storage,  data, spiffs,   ,         500K, 
 nvs_key,  data, nvs_keys, ,         0x1000

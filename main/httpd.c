@@ -38,10 +38,12 @@
 #include "mqtt.h"
 #include "httpd.h"
 #include "utils.h"
+#include "relay.h"
 
 #ifdef CONFIG_COMPONENT_HTTPD
 static const char *TAG = "httpd.cpp";
 static httpd_handle_t g_server = NULL;
+static const char *g_static_resp = "{\"status\":\"ok\"}";
 
 void e12aio_httpd_init_task(void *arg)
 {
@@ -158,17 +160,17 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
     return ESP_OK;
 }
 
-esp_err_t e12aio_httpd_handler_restart(httpd_req_t *req)
+esp_err_t e12aio_httpd_handler_save(httpd_req_t *req)
 {
     if (!e12aio_httpd_auth_ok(req))
         return ESP_OK;
 
-    static const char *l_static_resp = "{\"status\":\"ok\"}";
-    if (e12aio_config_lazy_started())
-        e12aio_config_save();
-    httpd_resp_send(req, l_static_resp, strlen(l_static_resp));
-    vTaskDelay(CONFIG_WEB_WAIT_BEFORE_RESTART / portTICK_PERIOD_MS);
-    esp_restart();
+    char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+    httpd_req_recv(req, (char *)&l_buffer, CONFIG_JSON_BUFFER_SIZE);
+    l_buffer[req->content_len] = 0;
+    e12aio_config_load_from_buffer(l_buffer);
+    e12aio_config_save();
+    httpd_resp_send(req, l_buffer, strlen(l_buffer));
     return ESP_OK;
 }
 
@@ -231,6 +233,16 @@ esp_err_t e12aio_httpd_handler_status(httpd_req_t *req)
     cJSON_AddItemToObject(l_mqtt, "status", l_mqtt_status);
     cJSON_AddItemToObject(l_json, "mqtt", l_mqtt);
 
+    // Relay Block
+    cJSON *l_relay = cJSON_CreateArray();
+    cJSON *l_port1 = cJSON_CreateBool(e12aio_config_get()->relay.port1);
+    cJSON *l_port2 = cJSON_CreateBool(e12aio_config_get()->relay.port2);
+    cJSON *l_port3 = cJSON_CreateBool(e12aio_config_get()->relay.port3);
+    cJSON_AddItemToArray(l_relay, l_port1);
+    cJSON_AddItemToArray(l_relay, l_port2);
+    cJSON_AddItemToArray(l_relay, l_port3);
+    cJSON_AddItemToObject(l_json, "relay", l_relay);
+
     // Return values (protect memory)
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
     cJSON_PrintPreallocated(l_json, (char *)&l_buffer, CONFIG_JSON_BUFFER_SIZE, false);
@@ -239,15 +251,78 @@ esp_err_t e12aio_httpd_handler_status(httpd_req_t *req)
     return ESP_OK;
 }
 
-esp_err_t e12aio_httpd_handler_relay_set(httpd_req_t *req)
+esp_err_t e12aio_httpd_handler_api(httpd_req_t *req)
 {
-    if (!e12aio_httpd_auth_ok(req))
+    // Check file name
+    size_t l_size = httpd_req_get_url_query_len(req);
+    char l_buffer[l_size + 1];
+    char l_token[CONFIG_WEB_AUTH_MAX_SIZE];
+    httpd_req_get_url_query_str(req, (char *)&l_buffer, l_size + 1);
+    httpd_query_key_value(l_buffer, "token", (char *)&l_token, CONFIG_WEB_AUTH_MAX_SIZE);
+    if (strncmp(l_token, e12aio_config_get()->httpd.token,
+                strlen(e12aio_config_get()->httpd.token)) == 0)
+    {
+        char l_relay_id[2];
+        char l_relay_status[4];
+        httpd_query_key_value(l_buffer, "port", (char *)&l_relay_id, 2);
+        httpd_query_key_value(l_buffer, "status", (char *)&l_relay_status, 4);
+        e12aio_relay_set(atoi(l_relay_id), strncmp(l_relay_status, "ON", 2) == 0);
+        httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
         return ESP_OK;
-    char *l_buffer = "{\"status\":\"err\",\"message\":\"under development\"}";
-    httpd_resp_send(req, l_buffer, strlen(l_buffer));
+    }
+    httpd_resp_set_status(req, "401 Not Authorized");
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
+/**
+ * @brief Handle all /action
+ */
+esp_err_t e12aio_httpd_handler_action(httpd_req_t *req)
+{
+    if (!e12aio_httpd_auth_ok(req))
+        return ESP_OK;
+
+    // Check file name
+    size_t l_size = httpd_req_get_url_query_len(req);
+    char l_buffer[l_size + 1];
+    char l_name[15];
+
+    httpd_req_get_url_query_str(req, (char *)&l_buffer, l_size + 1);
+    httpd_query_key_value(l_buffer, "name", (char *)&l_name, 15);
+    if (strncmp(l_name, "restart", 7) == 0)
+    {
+        // Restart block
+        if (e12aio_config_lazy_started())
+            e12aio_config_save();
+        httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
+        vTaskDelay(CONFIG_WEB_WAIT_BEFORE_RESTART / portTICK_PERIOD_MS);
+        esp_restart();
+        return ESP_OK;
+    }
+    else if (strncmp(l_name, "relay", 5) == 0)
+    {
+        char l_relay_id[2];
+        char l_relay_status[4];
+        httpd_query_key_value(l_buffer, "id", (char *)&l_relay_id, 2);
+        httpd_query_key_value(l_buffer, "status", (char *)&l_relay_status, 4);
+        e12aio_relay_set(atoi(l_relay_id), strncmp(l_relay_status, "ON", 2) == 0);
+        httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
+        return ESP_OK;
+    }
+    httpd_resp_set_status(req, "500 Server Error");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+/**
+ * @brief Handle all pages on spiffs
+ * 
+ * Sample calls:
+ * /
+ * /?file=script.js
+ * 
+ */
 void e12aio_httpd_register_index()
 {
     // Register base (/) handler
@@ -260,17 +335,25 @@ void e12aio_httpd_register_index()
     httpd_register_uri_handler(g_server, &l_uri_config);
 }
 
-void e12aio_httpd_register_restart()
+/**
+ * @brief Handle /save page.
+ * This page is responsible to update config.json file on spiffs.
+ */
+void e12aio_httpd_register_save()
 {
     // Register base (/) handler
     httpd_uri_t l_uri_config = {
-        .uri = "/restart",
-        .method = HTTP_GET,
-        .handler = e12aio_httpd_handler_restart,
+        .uri = "/save",
+        .method = HTTP_POST,
+        .handler = e12aio_httpd_handler_save,
     };
     httpd_register_uri_handler(g_server, &l_uri_config);
 }
 
+/**
+ * @brief Handle /status page
+ * This page is a json with "running" configurations.
+ */
 void e12aio_httpd_register_status()
 {
     // Register base (/) handler
@@ -282,17 +365,45 @@ void e12aio_httpd_register_status()
     httpd_register_uri_handler(g_server, &l_uri_config);
 }
 
-void e12aio_httpd_register_relay_set()
+/**
+ * @brief Handle /action page
+ * 
+ * Sample calls:
+ * /action?name=restart
+ * /action?name=relay&id=1&status=ON
+ * /action?name=firmware&url=http://github.com/example
+ */
+void e12aio_httpd_register_action()
 {
-    // Register base (/) handler
+    // Register base (/action) handler
     httpd_uri_t l_uri_config = {
-        .uri = "/relay",
+        .uri = "/action",
         .method = HTTP_GET,
-        .handler = e12aio_httpd_handler_relay_set,
+        .handler = e12aio_httpd_handler_action,
     };
     httpd_register_uri_handler(g_server, &l_uri_config);
 }
 
+/**
+ * @brief Handle /api page
+ * 
+ * Sample calls:
+ * /api?token=123456789&port=1&status=ON
+ */
+void e12aio_httpd_register_api()
+{
+    // Register base (/action) handler
+    httpd_uri_t l_uri_config = {
+        .uri = "/api",
+        .method = HTTP_GET,
+        .handler = e12aio_httpd_handler_api,
+    };
+    httpd_register_uri_handler(g_server, &l_uri_config);
+}
+
+/**
+ * @brief Start httpd component
+ */
 void e12aio_httpd_start()
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -304,9 +415,10 @@ void e12aio_httpd_start()
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
         e12aio_httpd_register_index();
-        e12aio_httpd_register_restart();
+        e12aio_httpd_register_action();
         e12aio_httpd_register_status();
-        e12aio_httpd_register_relay_set();
+        e12aio_httpd_register_save();
+        e12aio_httpd_register_api();
     }
     else
     {
@@ -314,6 +426,9 @@ void e12aio_httpd_start()
     }
 }
 
+/**
+ * @brief Stop the httpd component
+ */
 void e12aio_httpd_stop()
 {
     if (g_server != NULL)

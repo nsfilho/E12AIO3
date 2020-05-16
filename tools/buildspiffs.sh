@@ -43,10 +43,10 @@ fi
 
 echo "Workdir: $WORKDIR"
 echo "Building files..."
-cd $WORKDIR/content && yarn start
+cd $WORKDIR/content && yarn build
 
 echo "Build image..."
 $WORKDIR/mkspiffs/mkspiffs \
-     -d 5 -s 307200 -p 256 \
+     -d 5 -s 512000 -p 256 \
     -c $WORKDIR/content/dist \
     $WORKDIR/spiffs.bin

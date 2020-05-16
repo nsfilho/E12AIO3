@@ -125,7 +125,16 @@ bool e12aio_wifi_sta_is_available()
     // Async Process: start scanning
     ESP_LOGI(TAG, "SCAN: Starting");
     xEventGroupSetBits(g_wifi_event_group, E12AIO_WIFI_SCANNING);
-    ESP_ERROR_CHECK(esp_wifi_scan_start(NULL, false));
+    wifi_scan_config_t l_scan_config = {
+        .ssid = 0,
+        .bssid = 0,
+        .channel = 0,
+        .show_hidden = false,
+        .scan_type = WIFI_SCAN_TYPE_ACTIVE,
+        .scan_time.active.min = 500,
+        .scan_time.active.max = 1000,
+    };
+    ESP_ERROR_CHECK(esp_wifi_scan_start(&l_scan_config, false));
     xEventGroupWaitBits(g_wifi_event_group, E12AIO_WIFI_SCANNING_DONE, pdTRUE, pdTRUE, portMAX_DELAY);
 
     // Sync Process: check for network names available
