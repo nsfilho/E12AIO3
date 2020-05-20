@@ -28,6 +28,7 @@
 #include "relay.h"
 #include "mqtt.h"
 #include "httpd.h"
+#include "ota.h"
 
 static const char *TAG = "e12aio.c";
 
@@ -35,7 +36,7 @@ void nvs_init()
 {
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES)
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NOT_INITIALIZED)
     {
         ESP_ERROR_CHECK(nvs_flash_erase());
         ret = nvs_flash_init();
@@ -47,10 +48,18 @@ void app_main()
 {
     ESP_LOGI(TAG, "[APP] Starting E12-AIO3 Firmware...");
     nvs_init();
-    e12aio_debug_init();
-    e12aio_config_init();
-    e12aio_wifi_init();
-    e12aio_relay_init();
-    e12aio_mqtt_init();
-    e12aio_httpd_init();
+
+    // start block
+    e12aio_config_init(); // async
+    e12aio_wifi_init();   // async
+    if (!e12aio_ota_init())
+    {
+        // rest of all
+        e12aio_debug_init(); // async
+        e12aio_relay_init(); // async
+        e12aio_mqtt_init();  // async
+        e12aio_httpd_init(); // async
+    }
+    // end
+    vTaskDelete(NULL);
 }

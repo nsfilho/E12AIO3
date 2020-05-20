@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # E12AIO3 Firmware
 # Copyright (C) 2020 E01-AIO Automação Ltda.
@@ -19,25 +19,9 @@
 # Author: Nelio Santos <nsfilho@icloud.com>
 # Repository: https://github.com/nsfilho/E12AIO3
 #
-
 WORKDIR="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 cd $WORKDIR/..
 SPIFFS_START=`make partition_table | grep spiffs | cut -d ',' -f 4`
-#SPIFFS_SIZE=`make partition_table | grep spiffs | cut -d ',' -f 5`
 echo "Spiffs Start: $SPIFFS_START"
-cd $WORKDIR
-
-# Retrieve from ESP8266 if is needed
-if [ ! -f spiffs.bin ] ; then
-    esptool.py --port $ESPPORT read_flash ${SPIFFS_START} 512000 spiffs.bin
-fi
-
-# Remove old files
-if [ -d spiffs ] ; then
-    rm -rf spiffs
-fi
-
-# Extract the content
-mkdir spiffs
-mkspiffs/mkspiffs -p 256 -u spiffs spiffs.bin
+esptool.py --port $ESPPORT write_flash $SPIFFS_START tools/spiffs.bin

@@ -176,6 +176,14 @@ menu "Relay Component"
             GPIO port for relay 3.        
 endmenu
 
+menu "OTA Component"
+    config OTA_WATCHDOG_TIMEOUT
+        int "Watchdog Timeout (ms)"
+        default 300000
+        help
+            Web authentication username.
+endmenu
+
 menu "Debug Component"
     config DEBUG_INFO_DELAY
         int "Delay for print information (ms)"

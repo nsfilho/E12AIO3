@@ -48,3 +48,4 @@ bool e12aio_wifi_ap_is_active();
 char *e12aio_wifi_ap_get_ip();
 char *e12aio_wifi_ap_get_gateway();
 char *e12aio_wifi_ap_get_netmask();
+void e12aio_wifi_ap_wait_deactive(const char *TAG);

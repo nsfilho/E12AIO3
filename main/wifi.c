@@ -222,6 +222,16 @@ bool e12aio_wifi_ap_is_active()
     return (xEventGroupGetBits(g_wifi_event_group) & E12AIO_WIFI_AP_STARTED);
 }
 
+void e12aio_wifi_ap_wait_deactive(const char *TAG)
+{
+    ESP_LOGI(TAG, "Waiting until close AP mode");
+    for (; e12aio_wifi_ap_is_active();)
+    {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+    ESP_LOGI(TAG, "AP mode is closed");
+}
+
 bool e12aio_wifi_sta_is_connected()
 {
     return (xEventGroupGetBits(g_wifi_event_group) & E12AIO_WIFI_CONNECTED);

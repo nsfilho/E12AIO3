@@ -31,7 +31,7 @@
 #include "config.h"
 
 const char *TAG = "config.cpp";
-const char *g_config_file = "/spiffs/config.json";
+const char *g_config_file = "/v/config.json";
 
 static e12aio_config_t g_config;
 static EventGroupHandle_t g_eventGroup;
@@ -84,9 +84,9 @@ void e12aio_config_prepare_spiffs()
 {
     ESP_LOGI(TAG, "Initializing SPIFFS");
     esp_vfs_spiffs_conf_t l_conf = {
-        .base_path = "/spiffs",
+        .base_path = "/v",
         .partition_label = NULL,
-        .max_files = 15,
+        .max_files = 5,
         .format_if_mount_failed = true,
     };
 
@@ -162,7 +162,7 @@ void e12aio_config_lazy_save()
 void e12aio_config_load()
 {
     // Config file exists
-    ESP_LOGI(TAG, "Reading config file: /spiffs/config.json");
+    ESP_LOGI(TAG, "Reading config file: %s", g_config_file);
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
     FILE *l_fp = fopen(g_config_file, "r");
     if (l_fp == NULL)
@@ -246,6 +246,21 @@ void e12aio_config_load_from_buffer(const char *buffer)
     strncpy(g_config.httpd.password, l_httpd_password != NULL ? l_httpd_password->valuestring : CONFIG_WEB_AUTH_PASSWORD, CONFIG_WEB_AUTH_MAX_SIZE);
     strncpy(g_config.httpd.token, l_httpd_token != NULL ? l_httpd_token->valuestring : CONFIG_WEB_TOKEN, CONFIG_WEB_AUTH_MAX_SIZE);
 
+    // OTA Config
+    cJSON *l_ota = cJSON_GetObjectItem(l_json, "ota");
+    cJSON *l_ota_state = NULL;
+    cJSON *l_ota_url = NULL;
+    cJSON *l_ota_version = NULL;
+    if (l_ota != NULL)
+    {
+        l_ota_state = cJSON_GetObjectItem(l_ota, "state");
+        l_ota_url = cJSON_GetObjectItem(l_ota, "url");
+        l_ota_version = cJSON_GetObjectItem(l_ota, "version");
+    }
+    g_config.ota.state = (l_ota_state != NULL ? l_ota_state->valueint : E12AIO_OTA_OK);
+    strncpy(g_config.ota.url, l_ota_url != NULL ? l_ota_url->valuestring : "", E12AIO_OTA_URL_SIZE);
+    strncpy(g_config.ota.version, l_ota_version != NULL ? l_ota_version->valuestring : "undefined", E12AIO_OTA_VERSION_SIZE);
+
     ESP_LOGI(TAG, "Config loaded!");
     cJSON_Delete(l_json);
 }
@@ -305,6 +320,14 @@ size_t e12aio_config_save_buffer_adv(e12aio_config_t data, char *buffer, size_t 
     cJSON_AddItemToObject(httpd, "password", password);
     cJSON_AddItemToObject(httpd, "token", token);
     cJSON_AddItemToObject(json, "httpd", httpd);
+    cJSON *l_ota = cJSON_CreateObject();
+    cJSON *l_ota_state = cJSON_CreateNumber(g_config.ota.state);
+    cJSON *l_ota_url = cJSON_CreateString(g_config.ota.url);
+    cJSON *l_ota_version = cJSON_CreateString(g_config.ota.version);
+    cJSON_AddItemToObject(l_ota, "state", l_ota_state);
+    cJSON_AddItemToObject(l_ota, "url", l_ota_url);
+    cJSON_AddItemToObject(l_ota, "version", l_ota_version);
+    cJSON_AddItemToObject(json, "ota", l_ota);
     cJSON_PrintPreallocated(json, buffer, sz, false);
     cJSON_Delete(json);
     return strlen(buffer);

@@ -59,12 +59,13 @@ If you want to deep dive, you can see the [Schematic File](docs/Schematic_2020-0
 
 Main features:
 
--   ✓ Home assistant auto discovery;
--   ✓ Networking detection system (auto soft-ap & station);
--   ✓ MQTT Keep Alive;
--   ✓ Web Configuration (mobile-first)
--   ✓ Web API
--   Physical GPIO: I2C Oled, Binary Sensor, Button Sensor (with debouncing) - _under development_
+-   ✓ 🏠 Home assistant auto discovery;
+-   ✓ 📡 Networking detection system (auto soft-ap & station);
+-   ✓ 🎛 MQTT Keep Alive;
+-   ✓ 🛠 Web Configuration (mobile-first)
+-   ✓ 🕹 Web API
+-   ✓ 🎉 OTA (Over-the-air) Firmware Update - _under development_
+-   ⚡︎ Physical GPIO: I2C Oled, Binary Sensor, Button Sensor (with debouncing) - _backlog_
 
 ## Flash your firmware
 

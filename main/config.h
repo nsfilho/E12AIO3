@@ -60,6 +60,26 @@ typedef struct
     char password[CONFIG_WEB_AUTH_MAX_SIZE];
 } e12aio_config_httpd_t;
 
+typedef enum
+{
+    E12AIO_OTA_OK = 0,
+    E12AIO_OTA_SCHEDULED,
+    E12AIO_OTA_STARTED,
+    E12AIO_OTA_FAILED_WATCHDOG,
+    E12AIO_OTA_FAILED_DOWNLOAD,
+    E12AIO_OTA_FAILED_OTHER
+} e12aio_config_ota_state_t;
+
+#define E12AIO_OTA_URL_SIZE 200
+#define E12AIO_OTA_VERSION_SIZE 15
+
+typedef struct
+{
+    e12aio_config_ota_state_t state;
+    char url[E12AIO_OTA_URL_SIZE];
+    char version[E12AIO_OTA_VERSION_SIZE];
+} e12aio_config_ota_t;
+
 /**
  * Union of all config information
  */
@@ -69,6 +89,7 @@ typedef struct
     e12aio_config_relays_t relay;
     e12aio_config_mqtt_t mqtt;
     e12aio_config_httpd_t httpd;
+    e12aio_config_ota_t ota;
 } e12aio_config_t;
 
 void e12aio_config_init();

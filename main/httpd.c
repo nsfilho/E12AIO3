@@ -39,6 +39,7 @@
 #include "httpd.h"
 #include "utils.h"
 #include "relay.h"
+#include "ota.h"
 
 #ifdef CONFIG_COMPONENT_HTTPD
 static const char *TAG = "httpd.cpp";
@@ -136,10 +137,10 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
         char l_query[E12AIO_MAX_FILENAME];
         httpd_req_get_url_query_str(req, l_buffer, CONFIG_JSON_BUFFER_SIZE);
         httpd_query_key_value(l_buffer, "file", l_query, E12AIO_MAX_FILENAME);
-        snprintf(l_filename, E12AIO_MAX_FILENAME, "/spiffs/%s", l_query);
+        snprintf(l_filename, E12AIO_MAX_FILENAME, "/v/%s", l_query);
     }
     else
-        strcpy(l_filename, "/spiffs/index.html");
+        strcpy(l_filename, "/v/index.html");
 
     // Process request
     ESP_LOGI(TAG, "Serving page file: %s", l_filename);
@@ -302,6 +303,7 @@ esp_err_t e12aio_httpd_handler_action(httpd_req_t *req)
     }
     else if (strncmp(l_name, "relay", 5) == 0)
     {
+#ifdef CONFIG_COMPONENT_RELAY
         char l_relay_id[2];
         char l_relay_status[4];
         httpd_query_key_value(l_buffer, "id", (char *)&l_relay_id, 2);
@@ -309,6 +311,17 @@ esp_err_t e12aio_httpd_handler_action(httpd_req_t *req)
         e12aio_relay_set(atoi(l_relay_id), strncmp(l_relay_status, "ON", 2) == 0);
         httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
         return ESP_OK;
+#endif
+    }
+    else if (strncmp(l_name, "firmware", 8) == 0)
+    {
+#ifdef CONFIG_COMPONENT_OTA
+        char l_url[200];
+        httpd_query_key_value(l_buffer, "url", (char *)&l_url, 200);
+        e12aio_ota_start(l_url);
+        httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
+        return ESP_OK;
+#endif
     }
     httpd_resp_set_status(req, "500 Server Error");
     httpd_resp_send(req, NULL, 0);
@@ -433,6 +446,7 @@ void e12aio_httpd_stop()
 {
     if (g_server != NULL)
         httpd_stop(g_server);
+    g_server = NULL;
 }
 
 #endif
