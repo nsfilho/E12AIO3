@@ -151,7 +151,7 @@ void e12aio_config_lazy_save()
     {
         ESP_LOGI(TAG, "Creating a lazy saving task");
         xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
-        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 2048, NULL, 1, NULL);
+        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 4096, NULL, 1, NULL);
     }
     else
     {
