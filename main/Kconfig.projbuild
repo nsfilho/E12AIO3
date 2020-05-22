@@ -107,6 +107,12 @@ menu "MQTT Component"
         help
             Max topic size name
     
+    config MQTT_PAYLOAD_SIZE
+        int "Max payload size"
+        default 200
+        help
+            Max payload size name
+
     config MQTT_RETRY_TIMEOUT
         int "MQTT Retry (ms)"
         default 120000

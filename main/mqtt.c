@@ -240,7 +240,7 @@ size_t e12aio_mqtt_hass_switch_config_payload(char *buffer, size_t sz, uint8_t r
 void e12aio_mqtt_hass_sensor_config(const char *name)
 {
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
-    char l_payload[CONFIG_MQTT_TOPIC_SIZE];
+    char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "sensor", name, -1, "config");
     e12aio_mqtt_hass_sensor_config_payload(l_payload, CONFIG_MQTT_TOPIC_SIZE, name);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
@@ -250,7 +250,7 @@ void e12aio_mqtt_hass_sensor_config(const char *name)
 void e12aio_mqtt_sensor_send(const char *name, const char *format, ...)
 {
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
-    char l_payload[CONFIG_MQTT_TOPIC_SIZE];
+    char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     va_list l_args;
     va_start(l_args, format);
     vsnprintf(l_payload, CONFIG_MQTT_TOPIC_SIZE, format, l_args);
@@ -294,7 +294,7 @@ void e12aio_mqtt_keep_alive_send()
 void e12aio_mqtt_hass_relay(uint8_t relay)
 {
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
-    char l_payload[CONFIG_MQTT_TOPIC_SIZE];
+    char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, "config");
     e12aio_mqtt_hass_switch_config_payload(l_payload, CONFIG_MQTT_TOPIC_SIZE, relay);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
@@ -309,7 +309,7 @@ void e12aio_mqtt_hass_relay(uint8_t relay)
 void e12aio_mqtt_relay_send_status(uint8_t relay)
 {
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
-    char l_payload[CONFIG_MQTT_TOPIC_SIZE];
+    char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     strncpy(l_payload, e12aio_relay_get(relay) ? "ON" : "OFF", CONFIG_MQTT_TOPIC_SIZE);
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, NULL);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
