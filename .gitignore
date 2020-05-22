@@ -18,6 +18,11 @@
 # Author: Nelio Santos <nsfilho@icloud.com>
 # Repository: https://github.com/nsfilho/E12AIO3
 #
+ota/build
+ota/certs/openssl.cnf
+ota/certs/ca_cert.pem
+ota/certs/ca_key.pem
+ota/node_modules
 
 .clangd
 build/
