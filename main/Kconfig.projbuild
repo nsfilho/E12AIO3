@@ -39,7 +39,7 @@ menu "Config Component"
 
     config SAVE_LAZY_TIMEOUT
         int "Waiting time to save config (ms)"
-        default 10000
+        default 30000
         help
             Time to wait before save configuration in miliseconds. This is important
             because avoid to write many times the configuration for quickly changes.
@@ -73,7 +73,7 @@ menu "WIFI Component"
     
     config WIFI_SCAN_RETRY
         int "WiFi Rescan Timeout (ms)"
-        default 120000
+        default 30000
         help
             This configuration permits you to define the time between scans for know
             networks to retry connections (when droped).
@@ -90,7 +90,7 @@ endmenu
 menu "MQTT Component"
     config MQTT_URL
         string "MQTT URL"
-        default "mqtt://iot.eclipse.org"
+        default "mqtt://user:pass@iot.eclipse.org:1883"
         help
             URL of the broker to connect to
     
@@ -115,7 +115,7 @@ menu "MQTT Component"
 
     config MQTT_RETRY_TIMEOUT
         int "MQTT Retry (ms)"
-        default 120000
+        default 60000
         help
             Number of seconds to retry connect with MQTT
     
@@ -157,11 +157,11 @@ menu "HTTPD Component"
         help
             Max size for username, password and token buffers.
     config WEB_WAIT_BEFORE_RESTART
-        int "Waiting time before restart (ms)"
+        int "Waiting time before restart esp (ms)"
         default 5000
         help
-            Waiting time before restart in miliseconds. This give time
-            to send for client the http answer.
+            Waiting time, when received a restart event before do. This parameter
+            give time to response for http client before restart.
 endmenu
 
 menu "Relay Component"
