@@ -12,7 +12,6 @@ jobs:
       - uses: actions/checkout@v2
       - name: Generate generic certificate
         run: |
-          ls ota/certs
-          ota/certs/generate.sh
+          ota/certs/generate.sh 127.0.0.1
           ls ota/certs
       - uses: nsfilho/esp8266-rtos-sdk@v2
