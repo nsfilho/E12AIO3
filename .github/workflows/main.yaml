@@ -3,6 +3,11 @@ name: ESP8266-RTOS-SDK Build
 on:
   push:
     branches: [master]
+    paths:
+      - main
+      - tools/spiffs.bin
+      - sdkconfig.defaults
+      - partitions.csv
 
 jobs:
   build:
