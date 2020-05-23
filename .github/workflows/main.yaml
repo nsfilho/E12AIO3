@@ -1,0 +1,14 @@
+name: ESP8266-RTOS-SDK Build
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: build
+        uses: ./.github/actions/esp8266-rtos-sdk
