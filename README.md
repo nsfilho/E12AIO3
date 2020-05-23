@@ -151,6 +151,7 @@ Your sensor topics:
 <baseTopic>/sensor/e12aio3_<id>/model
 <baseTopic>/sensor/e12aio3_<id>/build
 <baseTopic>/sensor/e12aio3_<id>/ipaddr
+<baseTopic>/sensor/e12aio3_<id>/freemem
 ```
 
 Action topics:
