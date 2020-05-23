@@ -55,6 +55,14 @@ Characteristcs from this board:
 
 If you want to deep dive, you can see the [Schematic File](docs/Schematic_2020-05-03_09-55-35.pdf)
 
+## Web Interface
+
+You can see here a sample screenshot of a HTML5 (and responsive) interface.
+
+![Web UI - Dashboard View](docs/WebUI.png)
+
+If you click in Relay Status Port, you can toogle from ON / OFF.
+
 ## Firmware
 
 Main features:
