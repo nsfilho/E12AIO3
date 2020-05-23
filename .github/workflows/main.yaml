@@ -15,4 +15,4 @@ jobs:
           ls ota/certs
           ota/certs/generate.sh
           ls ota/certs
-      - uses: nsfilho/esp8266-rtos-sdk@v1
+      - uses: nsfilho/esp8266-rtos-sdk@v2
