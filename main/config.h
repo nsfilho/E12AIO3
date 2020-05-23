@@ -70,7 +70,7 @@ typedef enum
     E12AIO_OTA_FAILED_OTHER
 } e12aio_config_ota_state_t;
 
-#define E12AIO_OTA_URL_SIZE 200
+#define E12AIO_OTA_URL_SIZE CONFIG_HTTPD_MAX_URI_LEN
 #define E12AIO_OTA_VERSION_SIZE 15
 
 typedef struct
