@@ -20,6 +20,13 @@
 #
 
 idf_build_get_property(project_dir PROJECT_DIR)
+
+if (CONFIG_OTA_LOCAL_CERTIFICATE)
+    set(EMBED_TXTFILES_LIST ${project_dir}/ota/certs/ca_cert.pem ${project_dir}/ota/certs/github.pem)
+else()
+    set(EMBED_TXTFILES_LIST ${project_dir}/ota/certs/github.pem)
+endif()
+
 idf_component_register(SRCS "mqtt.c" "config.c" "wifi.c" "relay.c" "debug.c" "httpd.c" "utils.c" "ota.c" "e12aio.c"
                     INCLUDE_DIRS "."
-                    EMBED_TXTFILES ${project_dir}/ota/certs/ca_cert.pem ${project_dir}/ota/certs/github.pem)
+                    EMBED_TXTFILES ${EMBED_TXTFILES_LIST})

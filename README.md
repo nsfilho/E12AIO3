@@ -1,5 +1,7 @@
 # Home Automation
 
+![ESP8266-RTOS-SDK Build](https://github.com/nsfilho/E12AIO3/workflows/ESP8266-RTOS-SDK%20Build/badge.svg)
+
 The main goal of this project is provide a simple way to do some home automation [based on a cheap and
 small board](https://easyeda.com/DIY-Maker-BR/placa-4-reles-esp12f)
 

@@ -7,11 +7,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
-      - name: Generate generic certificate
-        run: |
-          ota/certs/generate.sh 127.0.0.1
-          ls ota/certs
       - uses: nsfilho/esp8266-rtos-sdk@v2
+      - name: Packing files
+        run: |
+          mkdir artifact
+          cp build/e12aio3.bin artifact/
+          cp build/ota_data_initial.bin artifact/
+          cp build/partitions.bin artifact/
+          cp build/phy_init_data.bin artifact/
+          cp tools/spiffs.bin artifact/
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: firmware
+          path: artifact/

@@ -188,6 +188,11 @@ menu "OTA Component"
         default 300000
         help
             Web authentication username.
+    config OTA_LOCAL_CERTIFICATE
+        bool "Embed a local certificate"
+        default false
+        help
+            Add a local certificate file ota/certs/ca_cert.pem to binary
 endmenu
 
 menu "Debug Component"
