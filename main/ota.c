@@ -74,9 +74,9 @@ void e12aio_ota_task(void *args)
     e12aio_wifi_sta_wait_connect(TAG);
     e12aio_wifi_ap_wait_deactive(TAG);
 #ifdef CONFIG_OTA_LOCAL_CERTIFICATE
-    char *cert_pem = strstr(e12aio_config_get()->ota.url, "github.com/") == NULL ? (char *)server_cert_pem_start : (char *)server_github_start;
+    char *cert_pem = strstr(e12aio_config_get()->ota.url, "github.com/") == NULL ? (char *)server_cert_pem_start : NULL;
 #else
-    char *cert_pem = (char *)server_github_start;
+    char *cert_pem = NULL;
 #endif
     esp_http_client_config_t config = {
         .url = e12aio_config_get()->ota.url,
