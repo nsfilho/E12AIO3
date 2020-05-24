@@ -5,6 +5,7 @@
 #include <esp_http_client.h>
 #include <esp_https_ota.h>
 #include <esp_system.h>
+#include <esp_tls.h>
 #include "e12aio.h"
 #include "config.h"
 #include "ota.h"
@@ -61,22 +62,14 @@ void e12aio_ota_watchdog(void *args)
 
 void e12aio_ota_task(void *args)
 {
-    // #ifdef CONFIG_COMPONENT_HTTPD
-    //     ESP_LOGI(TAG, "Stoping HTTPD Component");
-    //     e12aio_httpd_stop();
-    // #endif
-    // #ifdef CONFIG_COMPONENT_MQTT
-    //     ESP_LOGI(TAG, "Stopping MQTT Component");
-    //     e12aio_mqtt_disconnect();
-    // #endif
     ESP_LOGI(TAG, "Starting OTA Update: %s", e12aio_config_get()->ota.url);
     xTaskCreate(e12aio_ota_watchdog, "ota_watchdog", 2048, NULL, 5, NULL);
     e12aio_wifi_sta_wait_connect(TAG);
     e12aio_wifi_ap_wait_deactive(TAG);
 #ifdef CONFIG_OTA_LOCAL_CERTIFICATE
-    char *cert_pem = strstr(e12aio_config_get()->ota.url, "github.com/") == NULL ? (char *)server_cert_pem_start : NULL;
+    char *cert_pem = strstr(e12aio_config_get()->ota.url, "github.com/") == NULL ? (char *)server_cert_pem_start : (char *)server_github_start;
 #else
-    char *cert_pem = NULL;
+    char *cert_pem = (char *)server_github_start;
 #endif
     esp_http_client_config_t config = {
         .url = e12aio_config_get()->ota.url,
