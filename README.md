@@ -74,8 +74,12 @@ Main features:
 -   ✓ 🎛 MQTT Keep Alive;
 -   ✓ 🛠 Web Configuration (mobile-first)
 -   ✓ 🕹 Web API
--   ✓ 🎉 OTA (Over-the-air) Firmware Update - _under development_
+-   ✓ 🎉 OTA (Over-the-air) Firmware Update
 -   ⚡︎ Physical GPIO: I2C Oled, Binary Sensor, Button Sensor (with debouncing) - _backlog_
+
+## OTA Firmware URL
+
+You can update your board using a github url: [https://nsfilho.github.io/E12AIO3/e12aio3.bin](https://nsfilho.github.io/E12AIO3/e12aio3.bin)
 
 ## Flash your firmware
 
@@ -137,13 +141,17 @@ Where `home` is your `baseTopic`.
 Topics for command your relays:
 
 ```
-<baseTopic>/switch/e12aio3_<id>/relay<1-3>/set
+<baseTopic>/switch/e12aio3_<id>/relay1/set
+<baseTopic>/switch/e12aio3_<id>/relay2/set
+<baseTopic>/switch/e12aio3_<id>/relay3/set
 ```
 
 Topics for state your relays:
 
 ```
-<baseTopic>/switch/e12aio3_<id>/relay<1-3>
+<baseTopic>/switch/e12aio3_<id>/relay1
+<baseTopic>/switch/e12aio3_<id>/relay2
+<baseTopic>/switch/e12aio3_<id>/relay3
 ```
 
 Your sensor topics:
