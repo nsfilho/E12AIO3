@@ -242,7 +242,7 @@ void e12aio_mqtt_hass_sensor_config(const char *name)
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "sensor", name, -1, "config");
-    e12aio_mqtt_hass_sensor_config_payload(l_payload, CONFIG_MQTT_TOPIC_SIZE, name);
+    e12aio_mqtt_hass_sensor_config_payload(l_payload, CONFIG_MQTT_PAYLOAD_SIZE, name);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
     vTaskDelay(g_delay);
 }
@@ -253,7 +253,7 @@ void e12aio_mqtt_sensor_send(const char *name, const char *format, ...)
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     va_list l_args;
     va_start(l_args, format);
-    vsnprintf(l_payload, CONFIG_MQTT_TOPIC_SIZE, format, l_args);
+    vsnprintf(l_payload, CONFIG_MQTT_PAYLOAD_SIZE, format, l_args);
     va_end(l_args);
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "sensor", name, -1, NULL);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
@@ -296,7 +296,7 @@ void e12aio_mqtt_hass_relay(uint8_t relay)
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, "config");
-    e12aio_mqtt_hass_switch_config_payload(l_payload, CONFIG_MQTT_TOPIC_SIZE, relay);
+    e12aio_mqtt_hass_switch_config_payload(l_payload, CONFIG_MQTT_PAYLOAD_SIZE, relay);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
     vTaskDelay(g_delay);
 }
@@ -310,7 +310,7 @@ void e12aio_mqtt_relay_send_status(uint8_t relay)
 {
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
-    strncpy(l_payload, e12aio_relay_get(relay) ? "ON" : "OFF", CONFIG_MQTT_TOPIC_SIZE);
+    strncpy(l_payload, e12aio_relay_get(relay) ? "ON" : "OFF", CONFIG_MQTT_PAYLOAD_SIZE);
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, NULL);
     esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
     vTaskDelay(g_delay);
