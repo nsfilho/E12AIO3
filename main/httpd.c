@@ -316,8 +316,8 @@ esp_err_t e12aio_httpd_handler_action(httpd_req_t *req)
     else if (strncmp(l_name, "firmware", 8) == 0)
     {
 #ifdef CONFIG_COMPONENT_OTA
-        char l_url[200];
-        httpd_query_key_value(l_buffer, "url", (char *)&l_url, 200);
+        char l_url[E12AIO_OTA_URL_SIZE];
+        httpd_query_key_value(l_buffer, "url", (char *)&l_url, E12AIO_OTA_URL_SIZE);
         e12aio_ota_start(l_url);
         httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
         return ESP_OK;

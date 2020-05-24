@@ -22,6 +22,19 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
+      - name: Generate Public Artifacts
+        run: |
+          mkdir public
+          cp build/e12aio3.bin public
+          cp build/ota_data_initial.bin public
+          cp build/partitions.bin public
+          cp build/phy_init_data.bin public
+          cp tools/spiffs.bin public
+      - name: Deploy to pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
       - name: Upload e12aio3.bin
         uses: actions/upload-release-asset@v1
         env:
