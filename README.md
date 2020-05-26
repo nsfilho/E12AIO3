@@ -1,41 +1,18 @@
 # Home Automation
 
 ![ESP8266-RTOS-SDK Build](https://github.com/nsfilho/E12AIO3/workflows/ESP8266-RTOS-SDK%20Build/badge.svg)
+![Release](https://github.com/nsfilho/E12AIO3/workflows/Release/badge.svg?event=release)
 
-The main goal of this project is provide a simple way to do some home automation [based on a cheap and
+The main goal of this project is provide a simple way to do some 🏠 automation [based on a cheap and
 small board](https://easyeda.com/DIY-Maker-BR/placa-4-reles-esp12f)
 
-Project licensed under: GPLv3 for board and firmware.
-
-## License
-
-```txt
-
- E12AIO3 Firmware
- Copyright (C) 2020 E01-AIO Automação Ltda.
-
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
- Author: Nelio Santos <nsfilho@icloud.com>
- Repository: https://github.com/nsfilho/E12AIO3
-
-```
+Project licensed under: GPLv3 for board and firmware. If you would to know more about our targets, [see our trello board](https://trello.com/b/xgB3EULM)
 
 ## Board
 
-The board comes with all components soldered from [JLCPCB](https://jlcpcb.com), when you bought with SMT Assembly Services. You need only
-solder the relays (3x units), KREs (3x 3 vias, 1x 2 vias) and a ESP12 (E or F). Its super easy.
+The board comes with most of all components soldered from [JLCPCB](https://jlcpcb.com), when you bought with SMT Assembly Services. You need only solder the relays (3x units), KREs (3x 3 vias, 1x 2 vias) and a ESP12 (E or F). Its super easy.
+
+We provide (in portuguese by now) a [youtube video](https://youtu.be/1pT6UaQUK3s) describing this process.
 
 ![Board photo](docs/board.png)
 
@@ -59,11 +36,11 @@ If you want to deep dive, you can see the [Schematic File](docs/Schematic_2020-0
 
 ## Web Interface
 
-You can see here a sample screenshot of a HTML5 (and responsive) interface.
+You can see here a sample screenshot of our HTML5 (and responsive) interface 😍.
 
 ![Web UI - Dashboard View](docs/WebUI.png)
 
-If you click in Relay Status Port, you can toogle from ON / OFF.
+If you click at relay status port, you can toggle their state (ON / OFF). Any kind of idea are wellcome. If you are `web design`, `web developer` or at least a entusiast and want to contribute with that, please e-mail me.
 
 ## Firmware
 
@@ -79,9 +56,11 @@ Main features:
 
 ## OTA Firmware URL
 
-You can update your board using a github url: [https://nsfilho.github.io/E12AIO3/e12aio3.bin](https://nsfilho.github.io/E12AIO3/e12aio3.bin)
+You can update your board using a github url: [https://nsfilho.github.io/E12AIO3/e12aio3.bin](https://nsfilho.github.io/E12AIO3/e12aio3.bin). When we release a new version, automatically (by github actions) comes available in this url.
 
-## Flash your firmware
+## Flash Firmware
+
+You can find many ways to flash your board. We show bellow 2 distinct methods. The first, using a more sophisticated environment (like a developer) and the second a little more `easy`.
 
 **Method 1:** Exists two different ways to do that. First using the Espress IDF (as tooling), you can:
 
@@ -108,6 +87,7 @@ Now you are ready to flash, first download the files in [release](https://github
 You need replace the following information, in the command bellow:
 
 1. **/dev/cu.SLAB_USBtoUART** for your serial-usb port;
+2. **0x310000** address - could change because we are in a revision process of `partitions.csv`;
 
 ```sh
 python ~/.platformio/packages/tool-esptoolpy/esptool.py --port /dev/cu.SLAB_USBtoUART erase_flash
@@ -119,7 +99,12 @@ python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp8266 --port /d
 
 ### Configure Home Assistant Auto Discovery
 
-You need to add a few configurations to your home assistant existing MQTT configuration, example:
+You need to add a few configurations to your home assistant existing MQTT configuration.
+
+1. `discovery: true` to enable auto-discovery via MQTT;
+2. `discovery_prefix:` where the boards will send the messages for config;
+
+Sample:
 
 ```yaml
 mqtt:
@@ -134,11 +119,11 @@ mqtt:
     discovery_prefix: home
 ```
 
-Where `home` is your `baseTopic`.
+> `home` is your `baseTopic`.
 
 ### MQTT Topics
 
-Topics for command your relays:
+Topics for command your relays, where payloads is `ON` or `OFF`:
 
 ```
 <baseTopic>/switch/e12aio3_<id>/relay1/set
@@ -146,7 +131,7 @@ Topics for command your relays:
 <baseTopic>/switch/e12aio3_<id>/relay3/set
 ```
 
-Topics for state your relays:
+State topics for your relays:
 
 ```
 <baseTopic>/switch/e12aio3_<id>/relay1
@@ -154,7 +139,7 @@ Topics for state your relays:
 <baseTopic>/switch/e12aio3_<id>/relay3
 ```
 
-Your sensor topics:
+Sensor topics:
 
 ```
 <baseTopic>/sensor/e12aio3_<id>/uptime
@@ -185,13 +170,13 @@ GET: <baseTopic>/action/e12aio3_<id>/scan/get, PAYLOAD: json
 RES: <baseTopic>/action/e12aio3_<id>/scan, PAYLOAD: { ... json under development ... }
 ```
 
-### How to firmware?
+### How to build this firmware?
 
 This firmware was built in [ESP8266-RTOS IDF Like](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/release-v3.3/index.html#).
 
-You can use a ESP8266 Programmer (and avoid to solder serial headers) or via serial (TX, RX, GND).
+You can use a ESP8266 Programmer (and avoid to solder serial headers) or via serial (TX, RX, GND). Because you have OTA 🙏.
 
-If you have a FTDI / CP2104 or CH340 with DTR and CTS, the board is flash friendly (auto enter in programmer mode and restart after flash).
+If you have a FTDI / CP2104 or CH340 with DTR and CTS, the board is flash friendly (auto enter in programmer mode and restart after each step for flashing).
 
 ### How to configure default values from firmware?
 
@@ -199,7 +184,24 @@ Use `make menuconfig`
 
 ### How to flash?
 
-Use `make flash`
+Use `make erase_flash upload_spiffs flash`
+
+### Can I host OTA Server Locally?
+
+Yes. You can use the project inside `ota` folder to do that. You need generate certificates (self-signed) first, using `ota/certs/generate.sh <ip>`
+
+> **Important**: You must specify the IP address. Because you need to use the same IP in upload to check SSL certificate. If you have any doubt about that, please let us know.
+
+### Why HTMLs and others are packaged?
+
+The process to build the `spiffs.bin` it's a little complex to explain. We use a lot of files, and use a `GULP` to process all of then. During this process, i.e.:
+
+1. generate a dynamic icon font, using only the SVGs is used;
+2. merge all css files in a unique file;
+
+All spare files use much more than 1.5mb, and it is compressed in less than 150kb. This part of the project is in a `private` repository. But if you really want to contribute, please let me know.
+
+To develop that part of software in a more easy way, we created a `httpd server`, what provide to the browser, all files in an exactly same way of ESP8266. This httpd `watch file changes` in a directory and trigger `gulp` when something is changed.
 
 ### Action Topics
 

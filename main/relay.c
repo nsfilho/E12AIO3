@@ -34,8 +34,8 @@ void e12aio_relay_init_task(void *arg)
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = GPIO_Pin_14 | GPIO_Pin_12 | GPIO_Pin_13;
-    io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
+    io_conf.pin_bit_mask = BIT(CONFIG_RELAY_PORT1) | BIT(CONFIG_RELAY_PORT2) | BIT(CONFIG_RELAY_PORT3);
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
 
