@@ -15,12 +15,9 @@
 
 #ifdef CONFIG_COMPONENT_OTA
 static const char *TAG = "ota.c";
-#ifdef CONFIG_OTA_LOCAL_CERTIFICATE
-extern const uint8_t server_cert_pem_start[] asm("_binary_ca_cert_pem_start");
-extern const uint8_t server_cert_pem_end[] asm("_binary_ca_cert_pem_end");
-#endif
-extern const uint8_t server_github_start[] asm("_binary_github_pem_start");
-extern const uint8_t server_github_end[] asm("_binary_github_pem_end");
+
+extern const uint8_t server_certs_start[] asm("_binary_allcerts_pem_start");
+extern const uint8_t server_certs_end[] asm("_binary_allcerts_pem_end");
 
 esp_err_t e12aio_ota_http_event_handler(esp_http_client_event_t *evt)
 {
@@ -66,11 +63,8 @@ void e12aio_ota_task(void *args)
     xTaskCreate(e12aio_ota_watchdog, "ota_watchdog", 2048, NULL, 5, NULL);
     e12aio_wifi_sta_wait_connect(TAG);
     e12aio_wifi_ap_wait_deactive(TAG);
-#ifdef CONFIG_OTA_LOCAL_CERTIFICATE
-    char *cert_pem = strstr(e12aio_config_get()->ota.url, "github.com/") == NULL ? (char *)server_cert_pem_start : (char *)server_github_start;
-#else
-    char *cert_pem = (char *)server_github_start;
-#endif
+    char *cert_pem = (char *)server_certs_start;
+
     esp_http_client_config_t config = {
         .url = e12aio_config_get()->ota.url,
         .cert_pem = cert_pem,

@@ -11,7 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: nsfilho/esp8266-rtos-sdk@v2
+      - name: "Building project"
+        uses: nsfilho/esp8266-rtos-sdk@v2
+        with:
+          makearg: "allcerts defconfig all size-components"
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1

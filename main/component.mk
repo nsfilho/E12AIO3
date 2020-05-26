@@ -19,7 +19,4 @@
 # Repository: https://github.com/nsfilho/E12AIO3
 #
 
-COMPONENT_EMBED_TXTFILES :=  ${PROJECT_PATH}/ota/certs/github.pem
-ifdef CONFIG_OTA_LOCAL_CERTIFICATE
-	COMPONENT_EMBED_TXTFILES +=  ${PROJECT_PATH}/ota/certs/ca_cert.pem ${PROJECT_PATH}/ota/certs/github.pem
-endif
+COMPONENT_EMBED_TXTFILES :=  ${PROJECT_PATH}/ota/certs/allcerts.pem

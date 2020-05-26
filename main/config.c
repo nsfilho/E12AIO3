@@ -189,8 +189,8 @@ void e12aio_config_load_from_buffer(const char *buffer)
         l_wifi_ssid = cJSON_GetObjectItem(l_wifi, "ssid");
         l_wifi_password = cJSON_GetObjectItem(l_wifi, "password");
     }
-    strncpy(g_config.wifi.ssid, l_wifi_ssid != NULL ? l_wifi_ssid->valuestring : CONFIG_WIFI_SSID, 32);
-    strncpy(g_config.wifi.password, l_wifi_password != NULL ? l_wifi_password->valuestring : CONFIG_WIFI_PASSWORD, 64);
+    strncpy(g_config.wifi.ssid, l_wifi_ssid != NULL ? l_wifi_ssid->valuestring : CONFIG_WIFI_SSID, E12AIO_WIFI_SSID_SIZE);
+    strncpy(g_config.wifi.password, l_wifi_password != NULL ? l_wifi_password->valuestring : CONFIG_WIFI_PASSWORD, E12AIO_WIFI_PASSWORD_SIZE);
 
     // MQTT Config
     cJSON *l_mqtt = cJSON_GetObjectItem(l_json, "mqtt");
@@ -201,7 +201,7 @@ void e12aio_config_load_from_buffer(const char *buffer)
         l_mqtt_url = cJSON_GetObjectItem(l_mqtt, "url");
         l_mqtt_topic = cJSON_GetObjectItem(l_mqtt, "topic");
     }
-    strncpy(g_config.mqtt.url, l_mqtt_url != NULL ? l_mqtt_url->valuestring : CONFIG_MQTT_URL, 100);
+    strncpy(g_config.mqtt.url, l_mqtt_url != NULL ? l_mqtt_url->valuestring : CONFIG_MQTT_URL, E12AIO_MQTT_URL_SIZE);
     strncpy(g_config.mqtt.topic, l_mqtt_topic != NULL ? l_mqtt_topic->valuestring : CONFIG_MQTT_TOPIC_BASE, CONFIG_MQTT_TOPIC_SIZE);
 
     // Relay Config

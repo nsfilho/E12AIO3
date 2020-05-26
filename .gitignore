@@ -22,6 +22,7 @@ ota/build
 ota/certs/openssl.cnf
 ota/certs/ca_cert.pem
 ota/certs/ca_key.pem
+ota/certs/allcerts.pem
 ota/node_modules
 
 .clangd

@@ -22,6 +22,9 @@ PROJECT_NAME := e12aio3
 
 include $(IDF_PATH)/make/project.mk
 
+allcerts:
+	cat ota/certs/*_cert.pem > ota/certs/allcerts.pem
+
 build_spiffs:
 	cd tools && ./buildspiffs.sh
 

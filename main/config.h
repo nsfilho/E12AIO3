@@ -25,21 +25,26 @@
 #define E12AIO_CONFIG_SAVED BIT1
 #define E12AIO_CONFIG_DELAYED_SAVE BIT2
 
+#define E12AIO_WIFI_SSID_SIZE 32
+#define E12AIO_WIFI_PASSWORD_SIZE 64
+
 /**
  * Struct that contains all wifi information.
  */
 typedef struct
 {
-    char ssid[32];
-    char password[64];
+    char ssid[E12AIO_WIFI_SSID_SIZE];
+    char password[E12AIO_WIFI_PASSWORD_SIZE];
 } e12aio_config_wifi_t;
+
+#define E12AIO_MQTT_URL_SIZE 100
 
 /**
  * Struct that contains all mqtt informations
  */
 typedef struct
 {
-    char url[100];
+    char url[E12AIO_MQTT_URL_SIZE];
     char topic[CONFIG_MQTT_TOPIC_SIZE];
 } e12aio_config_mqtt_t;
 
