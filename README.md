@@ -4,9 +4,13 @@
 ![Release](https://github.com/nsfilho/E12AIO3/workflows/Release/badge.svg?event=release)
 
 The main goal of this project is provide a simple way to do some 🏠 automation [based on a cheap and
-small board](https://easyeda.com/DIY-Maker-BR/placa-4-reles-esp12f)
+small board](https://easyeda.com/DIY-Maker-BR/placa-4-reles-esp12f).
 
-Project licensed under: GPLv3 for board and firmware. If you would to know more about our targets, [see our trello board](https://trello.com/b/xgB3EULM)
+Project licensed under: GPLv3 (board and firmware).
+
+## Goals
+
+If you would to know more about our targets, [see our trello board](https://trello.com/b/xgB3EULM)
 
 ## Board
 
@@ -174,7 +178,7 @@ RES: <baseTopic>/action/e12aio3_<id>/scan, PAYLOAD: { ... json under development
 
 This firmware was built in [ESP8266-RTOS IDF Like](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/release-v3.3/index.html#).
 
-You can use a ESP8266 Programmer (and avoid to solder serial headers) or via serial (TX, RX, GND). Because you have OTA 🙏.
+You can use a ESP8266 Programmer (and avoid to solder serial headers) or via serial (TX, RX, GND). Because you update the firmware via OTA 🙏.
 
 If you have a FTDI / CP2104 or CH340 with DTR and CTS, the board is flash friendly (auto enter in programmer mode and restart after each step for flashing).
 
@@ -194,12 +198,14 @@ Yes. You can use the project inside `ota` folder to do that. You need generate c
 
 ### Why HTMLs and others are packaged?
 
-The process to build the `spiffs.bin` it's a little complex to explain. We use a lot of files, and use a `GULP` to process all of then. During this process, i.e.:
+The process to build the `spiffs.bin` it's a little complex to explain. We use a lot of files, and `GULP` to post-process all of then. To help you understand, GULP do:
 
 1. generate a dynamic icon font, using only the SVGs is used;
 2. merge all css files in a unique file;
+3. minify htmls, css and images;
+4. re-structure folders from a `organized tree` to `dist tree`;
 
-All spare files use much more than 1.5mb, and it is compressed in less than 150kb. This part of the project is in a `private` repository. But if you really want to contribute, please let me know.
+All spare files (to build the `spiffs.bin`) use much more than **1.5mb**, and it is compressed in `less than 150kb`. This technology is part of a `private` repository. But if you **really want** to contribute, please let me know.
 
 To develop that part of software in a more easy way, we created a `httpd server`, what provide to the browser, all files in an exactly same way of ESP8266. This httpd `watch file changes` in a directory and trigger `gulp` when something is changed.
 
