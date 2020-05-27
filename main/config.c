@@ -28,9 +28,11 @@
 #include <esp_spiffs.h>
 #include <cJSON.h>
 #include <string.h>
+#include "e12aio.h"
 #include "config.h"
+#include "spiffs.h"
 
-const char *TAG = "config.cpp";
+const char *TAG = "config.c";
 const char *g_config_file = "/v/config.json";
 
 static e12aio_config_t g_config;
@@ -38,7 +40,7 @@ static EventGroupHandle_t g_eventGroup;
 
 void e12aio_config_init_task(void *arg)
 {
-    e12aio_config_prepare_spiffs();
+    e12aio_spiffs_init();
     e12aio_config_prepare_configs();
     xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_LOADED);
     vTaskDelete(NULL);
@@ -68,7 +70,6 @@ char *e12aio_config_get_name()
     static char s_esp_name[14];
     if (s_prepared)
         return (char *)&s_esp_name;
-
     uint8_t l_mac[6];
     esp_wifi_get_mac(WIFI_IF_STA, l_mac);
     snprintf(s_esp_name, sizeof(s_esp_name), "e12aio_%02X%02X%02X", l_mac[3], l_mac[4], l_mac[5]);
@@ -78,51 +79,19 @@ char *e12aio_config_get_name()
 }
 
 /**
- * Prepare spiffs structure do save and load data
- */
-void e12aio_config_prepare_spiffs()
-{
-    ESP_LOGI(TAG, "Initializing SPIFFS");
-    esp_vfs_spiffs_conf_t l_conf = {
-        .base_path = "/v",
-        .partition_label = NULL,
-        .max_files = 5,
-        .format_if_mount_failed = true,
-    };
-
-    esp_err_t l_ret = esp_vfs_spiffs_register(&l_conf);
-    if (l_ret != ESP_OK)
-    {
-        if (l_ret == ESP_FAIL)
-        {
-            ESP_LOGE(TAG, "Failed to mount or format filesystem");
-        }
-        else if (l_ret == ESP_ERR_NOT_FOUND)
-        {
-            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-        }
-        else
-        {
-            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(l_ret));
-        }
-        return;
-    }
-}
-
-/**
  * Prepare your configuration or set default values
  */
 void e12aio_config_prepare_configs()
 {
-    struct stat l_st;
-    if (stat(g_config_file, &l_st) == 0)
+    char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+    if (e12aio_spiffs_read(g_config_file, l_buffer, CONFIG_JSON_BUFFER_SIZE) > 0)
     {
-        // loading from system
-        e12aio_config_load();
+        // initialize using last saved version
+        e12aio_config_load_from_buffer(l_buffer);
     }
     else
     {
-        // Initialize the configuration with fabric defaults
+        // Initialize the configuration with firmware defaults (from fabric)
         e12aio_config_load_from_buffer("{}");
         e12aio_config_lazy_save();
     }
@@ -159,22 +128,6 @@ void e12aio_config_lazy_save()
     }
 }
 
-void e12aio_config_load()
-{
-    // Config file exists
-    ESP_LOGI(TAG, "Reading config file: %s", g_config_file);
-    char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-    FILE *l_fp = fopen(g_config_file, "r");
-    if (l_fp == NULL)
-    {
-        ESP_LOGE(TAG, "Failed to open file: %s for reading", g_config_file);
-        return;
-    }
-    fread(&l_buffer, 1, CONFIG_JSON_BUFFER_SIZE, l_fp);
-    fclose(l_fp);
-    e12aio_config_load_from_buffer(l_buffer);
-}
-
 void e12aio_config_load_from_buffer(const char *buffer)
 {
     // parse file
@@ -182,25 +135,49 @@ void e12aio_config_load_from_buffer(const char *buffer)
 
     // WIFI Config
     cJSON *l_wifi = cJSON_GetObjectItem(l_json, "wifi");
-    cJSON *l_wifi_ssid = NULL;
-    cJSON *l_wifi_password = NULL;
+    cJSON *l_wifi_sta_ssid = NULL;
+    cJSON *l_wifi_sta_password = NULL;
+    cJSON *l_wifi_ap_password = NULL;
+    cJSON *l_wifi_dhcp = NULL;
+    cJSON *l_wifi_ip = NULL;
+    cJSON *l_wifi_netmask = NULL;
+    cJSON *l_wifi_gateway = NULL;
+    cJSON *l_wifi_dns1 = NULL;
+    cJSON *l_wifi_dns2 = NULL;
     if (l_wifi != NULL)
     {
-        l_wifi_ssid = cJSON_GetObjectItem(l_wifi, "ssid");
-        l_wifi_password = cJSON_GetObjectItem(l_wifi, "password");
+        l_wifi_sta_ssid = cJSON_GetObjectItem(l_wifi, "sta_ssid");
+        l_wifi_sta_password = cJSON_GetObjectItem(l_wifi, "sta_password");
+        l_wifi_ap_password = cJSON_GetObjectItem(l_wifi, "ap_password");
+        l_wifi_dhcp = cJSON_GetObjectItem(l_wifi, "dhcp");
+        l_wifi_ip = cJSON_GetObjectItem(l_wifi, "ip");
+        l_wifi_netmask = cJSON_GetObjectItem(l_wifi, "netmask");
+        l_wifi_gateway = cJSON_GetObjectItem(l_wifi, "gateway");
+        l_wifi_dns1 = cJSON_GetObjectItem(l_wifi, "dns1");
+        l_wifi_dns2 = cJSON_GetObjectItem(l_wifi, "dns2");
     }
-    strncpy(g_config.wifi.ssid, l_wifi_ssid != NULL ? l_wifi_ssid->valuestring : CONFIG_WIFI_SSID, E12AIO_WIFI_SSID_SIZE);
-    strncpy(g_config.wifi.password, l_wifi_password != NULL ? l_wifi_password->valuestring : CONFIG_WIFI_PASSWORD, E12AIO_WIFI_PASSWORD_SIZE);
+    strncpy(g_config.wifi.sta_ssid, l_wifi_sta_ssid != NULL ? l_wifi_sta_ssid->valuestring : CONFIG_WIFI_SSID, E12AIO_WIFI_SSID_SIZE);
+    strncpy(g_config.wifi.sta_password, l_wifi_sta_password != NULL ? l_wifi_sta_password->valuestring : CONFIG_WIFI_PASSWORD, E12AIO_WIFI_PASSWORD_SIZE);
+    strncpy(g_config.wifi.ap_password, l_wifi_ap_password != NULL ? l_wifi_ap_password->valuestring : CONFIG_WIFI_AP_PASSWORD, E12AIO_WIFI_PASSWORD_SIZE);
+    g_config.wifi.dhcp = (l_wifi_dhcp != NULL) ? cJSON_IsTrue(l_wifi_dhcp) : true;
+    strncpy(g_config.wifi.ip, l_wifi_ip != NULL ? l_wifi_ip->valuestring : "192.168.1.2", E12AIO_WIFI_PASSWORD_SIZE);
+    strncpy(g_config.wifi.netmask, l_wifi_netmask != NULL ? l_wifi_netmask->valuestring : "255.255.255.0", E12AIO_IPV4_SIZE);
+    strncpy(g_config.wifi.gateway, l_wifi_gateway != NULL ? l_wifi_gateway->valuestring : "192.168.1.1", E12AIO_IPV4_SIZE);
+    strncpy(g_config.wifi.dns1, l_wifi_dns1 != NULL ? l_wifi_dns1->valuestring : "8.8.8.8", E12AIO_IPV4_SIZE);
+    strncpy(g_config.wifi.dns2, l_wifi_dns2 != NULL ? l_wifi_dns2->valuestring : "8.8.4.4", E12AIO_IPV4_SIZE);
 
     // MQTT Config
     cJSON *l_mqtt = cJSON_GetObjectItem(l_json, "mqtt");
+    cJSON *l_mqtt_enable = NULL;
     cJSON *l_mqtt_url = NULL;
     cJSON *l_mqtt_topic = NULL;
     if (l_mqtt != NULL)
     {
+        l_mqtt_enable = cJSON_GetObjectItem(l_mqtt, "enable");
         l_mqtt_url = cJSON_GetObjectItem(l_mqtt, "url");
         l_mqtt_topic = cJSON_GetObjectItem(l_mqtt, "topic");
     }
+    g_config.mqtt.enable = (l_mqtt_enable != NULL) ? cJSON_IsTrue(l_mqtt_enable) : true;
     strncpy(g_config.mqtt.url, l_mqtt_url != NULL ? l_mqtt_url->valuestring : CONFIG_MQTT_URL, E12AIO_MQTT_URL_SIZE);
     strncpy(g_config.mqtt.topic, l_mqtt_topic != NULL ? l_mqtt_topic->valuestring : CONFIG_MQTT_TOPIC_BASE, CONFIG_MQTT_TOPIC_SIZE);
 
@@ -236,31 +213,30 @@ void e12aio_config_load_from_buffer(const char *buffer)
     cJSON *l_httpd_username = NULL;
     cJSON *l_httpd_password = NULL;
     cJSON *l_httpd_token = NULL;
+    cJSON *l_httpd_api_enable = NULL;
     if (l_httpd != NULL)
     {
         l_httpd_username = cJSON_GetObjectItem(l_httpd, "username");
         l_httpd_password = cJSON_GetObjectItem(l_httpd, "password");
         l_httpd_token = cJSON_GetObjectItem(l_httpd, "token");
+        l_httpd_api_enable = cJSON_GetObjectItem(l_httpd, "enable");
     }
     strncpy(g_config.httpd.username, l_httpd_username != NULL ? l_httpd_username->valuestring : CONFIG_WEB_AUTH_USERNAME, CONFIG_WEB_AUTH_MAX_SIZE);
     strncpy(g_config.httpd.password, l_httpd_password != NULL ? l_httpd_password->valuestring : CONFIG_WEB_AUTH_PASSWORD, CONFIG_WEB_AUTH_MAX_SIZE);
     strncpy(g_config.httpd.token, l_httpd_token != NULL ? l_httpd_token->valuestring : CONFIG_WEB_TOKEN, CONFIG_WEB_AUTH_MAX_SIZE);
+    g_config.httpd.api_enable = (l_httpd_api_enable != NULL) ? cJSON_IsTrue(l_httpd_api_enable) : true;
 
     // OTA Config
     cJSON *l_ota = cJSON_GetObjectItem(l_json, "ota");
     cJSON *l_ota_state = NULL;
-    cJSON *l_ota_url = NULL;
     cJSON *l_ota_version = NULL;
     if (l_ota != NULL)
     {
         l_ota_state = cJSON_GetObjectItem(l_ota, "state");
-        l_ota_url = cJSON_GetObjectItem(l_ota, "url");
         l_ota_version = cJSON_GetObjectItem(l_ota, "version");
     }
     g_config.ota.state = (l_ota_state != NULL ? l_ota_state->valueint : E12AIO_OTA_OK);
-    strncpy(g_config.ota.url, l_ota_url != NULL ? l_ota_url->valuestring : "", E12AIO_OTA_URL_SIZE);
-    strncpy(g_config.ota.version, l_ota_version != NULL ? l_ota_version->valuestring : "undefined", E12AIO_OTA_VERSION_SIZE);
-
+    strncpy(g_config.ota.version, l_ota_version != NULL ? l_ota_version->valuestring : E12AIO_VERSION, E12AIO_OTA_VERSION_SIZE);
     ESP_LOGI(TAG, "Config loaded!");
     cJSON_Delete(l_json);
 }
@@ -271,15 +247,8 @@ void e12aio_config_load_from_buffer(const char *buffer)
 void e12aio_config_save()
 {
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-    FILE *l_fp = fopen(g_config_file, "w+");
-    if (l_fp == NULL)
-    {
-        ESP_LOGE(TAG, "Failed to write file: %s", g_config_file);
-        return;
-    }
     size_t l_len = e12aio_config_save_buffer_adv(g_config, l_buffer, CONFIG_JSON_BUFFER_SIZE);
-    fwrite(l_buffer, 1, l_len, l_fp);
-    fclose(l_fp);
+    e12aio_spiffs_write(g_config_file, l_buffer, CONFIG_JSON_BUFFER_SIZE);
     xEventGroupClearBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
 }
 
@@ -288,6 +257,7 @@ size_t e12aio_config_save_buffer(char *buffer, size_t sz)
     return e12aio_config_save_buffer_adv(g_config, buffer, sz);
 }
 
+// TODO: Adicionar todas as novas configurações que faltam.
 size_t e12aio_config_save_buffer_adv(e12aio_config_t data, char *buffer, size_t sz)
 {
     // Generate a clear config.json

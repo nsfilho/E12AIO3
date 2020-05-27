@@ -40,9 +40,10 @@
 #include "utils.h"
 #include "relay.h"
 #include "ota.h"
+#include "spiffs.h"
 
 #ifdef CONFIG_COMPONENT_HTTPD
-static const char *TAG = "httpd.cpp";
+static const char *TAG = "httpd.c";
 static httpd_handle_t g_server = NULL;
 static const char *g_static_resp = "{\"status\":\"ok\"}";
 
@@ -120,6 +121,9 @@ bool e12aio_httpd_auth_ok(httpd_req_t *req)
     return true;
 }
 
+/**
+ * @brief This function handle all request from spiffs pages
+ */
 esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
 {
     // Check Authentication first
@@ -128,34 +132,25 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
 
     size_t l_size = 0;
     char l_filename[E12AIO_MAX_FILENAME];
-    char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+    char l_buffer[CONFIG_HTTPD_MAX_URI_LEN];
 
     // Check file name
     l_size = httpd_req_get_url_query_len(req);
     if (l_size > 0)
     {
-        char l_query[E12AIO_MAX_FILENAME];
-        httpd_req_get_url_query_str(req, l_buffer, CONFIG_JSON_BUFFER_SIZE);
-        httpd_query_key_value(l_buffer, "file", l_query, E12AIO_MAX_FILENAME);
-        snprintf(l_filename, E12AIO_MAX_FILENAME, "/v/%s", l_query);
+        httpd_req_get_url_query_str(req, l_buffer, CONFIG_HTTPD_MAX_URI_LEN);
+        httpd_query_key_value(l_buffer, "file", l_filename, E12AIO_MAX_FILENAME);
     }
     else
         strcpy(l_filename, "/v/index.html");
 
     // Process request
     ESP_LOGI(TAG, "Serving page file: %s", l_filename);
-    FILE *l_fp = fopen(l_filename, "r");
-    if (l_fp == NULL)
-    {
-        ESP_LOGE(TAG, "Failed to open file: %s for reading", l_filename);
-        return ESP_ERR_NOT_FOUND;
-    }
     do
     {
-        l_size = fread(&l_buffer, 1, CONFIG_JSON_BUFFER_SIZE, l_fp);
+        l_size = e12aio_spiffs_read(l_filename, &l_buffer, CONFIG_HTTPD_MAX_URI_LEN);
         httpd_resp_send_chunk(req, l_buffer, l_size);
-    } while (l_size == CONFIG_JSON_BUFFER_SIZE);
-    fclose(l_fp);
+    } while (l_size == CONFIG_HTTPD_MAX_URI_LEN);
 
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;

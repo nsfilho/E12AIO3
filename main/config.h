@@ -27,14 +27,22 @@
 
 #define E12AIO_WIFI_SSID_SIZE 32
 #define E12AIO_WIFI_PASSWORD_SIZE 64
+#define E12AIO_IPV4_SIZE 16 // xxx.xxx.xxx.xxx
 
 /**
  * Struct that contains all wifi information.
  */
 typedef struct
 {
-    char ssid[E12AIO_WIFI_SSID_SIZE];
-    char password[E12AIO_WIFI_PASSWORD_SIZE];
+    char ap_password[E12AIO_WIFI_PASSWORD_SIZE];
+    char sta_ssid[E12AIO_WIFI_SSID_SIZE];
+    char sta_password[E12AIO_WIFI_PASSWORD_SIZE];
+    bool dhcp;
+    char ip[E12AIO_IPV4_SIZE];
+    char netmask[E12AIO_IPV4_SIZE];
+    char gateway[E12AIO_IPV4_SIZE];
+    char dns1[E12AIO_IPV4_SIZE];
+    char dns2[E12AIO_IPV4_SIZE];
 } e12aio_config_wifi_t;
 
 #define E12AIO_MQTT_URL_SIZE 100
@@ -44,6 +52,7 @@ typedef struct
  */
 typedef struct
 {
+    bool enable;
     char url[E12AIO_MQTT_URL_SIZE];
     char topic[CONFIG_MQTT_TOPIC_SIZE];
 } e12aio_config_mqtt_t;
@@ -60,6 +69,7 @@ typedef struct
 
 typedef struct
 {
+    bool api_enable;
     char token[CONFIG_WEB_AUTH_MAX_SIZE];
     char username[CONFIG_WEB_AUTH_MAX_SIZE];
     char password[CONFIG_WEB_AUTH_MAX_SIZE];
@@ -82,7 +92,6 @@ typedef enum
 typedef struct
 {
     e12aio_config_ota_state_t state;
-    char url[E12AIO_OTA_URL_SIZE];
     char version[E12AIO_OTA_VERSION_SIZE];
 } e12aio_config_ota_t;
 
@@ -100,7 +109,6 @@ typedef struct
 
 void e12aio_config_init();
 char *e12aio_config_get_name();
-void e12aio_config_prepare_spiffs();
 void e12aio_config_prepare_configs();
 void e12aio_config_lazy_save();
 bool e12aio_config_lazy_started();

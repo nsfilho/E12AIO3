@@ -8,10 +8,6 @@ small board](https://easyeda.com/DIY-Maker-BR/placa-4-reles-esp12f).
 
 Project licensed under: GPLv3 (board and firmware).
 
-## Goals
-
-If you would to know more about our targets, [see our trello board](https://trello.com/b/xgB3EULM)
-
 ## Board
 
 The board comes with most of all components soldered from [JLCPCB](https://jlcpcb.com), when you bought with SMT Assembly Services. You need only solder the relays (3x units), KREs (3x 3 vias, 1x 2 vias) and a ESP12 (E or F). Its super easy.
