@@ -20,6 +20,8 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <esp_log.h>
+#include <esp_spiffs.h>
 #include "spiffs.h"
 
 static const char *TAG = "spiffs.c";
@@ -57,7 +59,7 @@ void e12aio_spiffs_init()
     }
 }
 
-char *e12aio_spiffs_get_basepath()
+const char *e12aio_spiffs_get_basepath()
 {
     return g_basePath;
 }
@@ -69,11 +71,11 @@ bool e12aio_spiffs_has_basepath(char *filename)
             filename[strlen(g_basePath + 1)] == '/');
 }
 
-char *e12aio_spiffs_fullpath(char *filename)
+const char *e12aio_spiffs_fullpath(char *filename)
 {
     if (!e12aio_spiffs_has_basepath(filename))
         sprintf(filename, "%s/%s", g_basePath, filename);
-    return filename;
+    return (const char *)filename;
 }
 
 /**
@@ -82,16 +84,18 @@ char *e12aio_spiffs_fullpath(char *filename)
  * 
  * Sample:
  * 
- * e12aio_spiffs_write("/v/teste.txt")
+ * e12aio_spiffs_write("/v/teste.txt", buffer, strlen(buffer));
  * 
  */
-size_t e12aio_spiffs_write(char *filename, char *buffer, size_t sz)
+size_t e12aio_spiffs_write(const char *filename, char *buffer, size_t sz)
 {
     static FILE *s_fp = NULL;
+    size_t s_totalSize = 0;
     if (s_fp == NULL && filename != NULL)
     {
         // Open file to write
-        s_fp = fopen(e12aio_spiffs_fullpath(filename), "w");
+        s_totalSize = 0;
+        s_fp = fopen(filename, "w");
     }
     if (buffer == NULL)
     {
@@ -102,19 +106,22 @@ size_t e12aio_spiffs_write(char *filename, char *buffer, size_t sz)
     else
     {
         // write to file
-        fwrite(url, 1, sz, s_fp);
+        s_totalSize += fwrite(buffer, 1, sz, s_fp);
     }
+    return s_totalSize;
 }
 
 /**
  * @brief Read a file in chunks
  */
-size_t e12aio_spiffs_read(char *filename, char *buffer, size_t sz)
+size_t e12aio_spiffs_read(const char *filename, char *buffer, size_t sz)
 {
     static FILE *s_fp = NULL;
+    static size_t s_totalSize = 0;
     if (s_fp == NULL && filename != NULL)
     {
-        s_fp = fopen(e12aio_spiffs_fullpath(filename), "r");
+        s_totalSize = 0;
+        s_fp = fopen(filename, "r");
         if (s_fp == NULL)
         {
             memset(buffer, 0, sz);
@@ -122,6 +129,9 @@ size_t e12aio_spiffs_read(char *filename, char *buffer, size_t sz)
             return 0;
         }
     }
-    if (fread(&buffer, 1, sz, s_fp) < sz)
-        fclose(l_fp);
+    size_t l_sz = fread(buffer, 1, sz, s_fp);
+    s_totalSize += l_sz;
+    if (l_sz < sz)
+        fclose(s_fp);
+    return s_totalSize;
 }

@@ -25,7 +25,6 @@
 #include <esp_wifi.h>
 #include <esp_system.h>
 #include <esp_log.h>
-#include <esp_spiffs.h>
 #include <cJSON.h>
 #include <string.h>
 #include "e12aio.h"
@@ -84,7 +83,7 @@ char *e12aio_config_get_name()
 void e12aio_config_prepare_configs()
 {
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-    if (e12aio_spiffs_read(g_config_file, l_buffer, CONFIG_JSON_BUFFER_SIZE) > 0)
+    if (e12aio_spiffs_read(g_config_file, (char *)&l_buffer, CONFIG_JSON_BUFFER_SIZE) > 0)
     {
         // initialize using last saved version
         e12aio_config_load_from_buffer(l_buffer);
@@ -247,8 +246,8 @@ void e12aio_config_load_from_buffer(const char *buffer)
 void e12aio_config_save()
 {
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-    size_t l_len = e12aio_config_save_buffer_adv(g_config, l_buffer, CONFIG_JSON_BUFFER_SIZE);
-    e12aio_spiffs_write(g_config_file, l_buffer, CONFIG_JSON_BUFFER_SIZE);
+    size_t l_len = e12aio_config_save_buffer_adv(g_config, (char *)l_buffer, CONFIG_JSON_BUFFER_SIZE);
+    e12aio_spiffs_write(g_config_file, l_buffer, l_len);
     xEventGroupClearBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
 }
 
@@ -257,47 +256,68 @@ size_t e12aio_config_save_buffer(char *buffer, size_t sz)
     return e12aio_config_save_buffer_adv(g_config, buffer, sz);
 }
 
-// TODO: Adicionar todas as novas configurações que faltam.
 size_t e12aio_config_save_buffer_adv(e12aio_config_t data, char *buffer, size_t sz)
 {
     // Generate a clear config.json
     cJSON *json = cJSON_CreateObject();
+
     cJSON *wifi = cJSON_CreateObject();
-    cJSON *wifi_ssid = cJSON_CreateString(data.wifi.ssid);
-    cJSON *wifi_password = cJSON_CreateString(data.wifi.password);
-    cJSON_AddItemToObject(wifi, "ssid", wifi_ssid);
-    cJSON_AddItemToObject(wifi, "password", wifi_password);
+    cJSON *wifi_sta_ssid = cJSON_CreateString(data.wifi.sta_ssid);
+    cJSON *wifi_sta_password = cJSON_CreateString(data.wifi.sta_password);
+    cJSON *wifi_ap_password = cJSON_CreateString(data.wifi.ap_password);
+    cJSON *wifi_dhcp = cJSON_CreateBool(data.wifi.dhcp);
+    cJSON *wifi_ip = cJSON_CreateString(data.wifi.ip);
+    cJSON *wifi_netmask = cJSON_CreateString(data.wifi.netmask);
+    cJSON *wifi_gateway = cJSON_CreateString(data.wifi.gateway);
+    cJSON *wifi_dns1 = cJSON_CreateString(data.wifi.dns1);
+    cJSON *wifi_dns2 = cJSON_CreateString(data.wifi.dns2);
+    cJSON_AddItemToObject(wifi, "ap_password", wifi_ap_password);
+    cJSON_AddItemToObject(wifi, "sta_ssid", wifi_sta_ssid);
+    cJSON_AddItemToObject(wifi, "sta_password", wifi_sta_password);
+    cJSON_AddItemToObject(wifi, "dhcp", wifi_dhcp);
+    cJSON_AddItemToObject(wifi, "ip", wifi_ip);
+    cJSON_AddItemToObject(wifi, "netmask", wifi_netmask);
+    cJSON_AddItemToObject(wifi, "gateway", wifi_gateway);
+    cJSON_AddItemToObject(wifi, "dns1", wifi_dns1);
+    cJSON_AddItemToObject(wifi, "dns2", wifi_dns2);
     cJSON_AddItemToObject(json, "wifi", wifi);
+
     cJSON *mqtt = cJSON_CreateObject();
+    cJSON *mqtt_enable = cJSON_CreateBool(data.mqtt.enable);
     cJSON *mqtt_url = cJSON_CreateString(data.mqtt.url);
     cJSON *mqtt_topic = cJSON_CreateString(data.mqtt.topic);
+    cJSON_AddItemToObject(mqtt, "enable", mqtt_enable);
     cJSON_AddItemToObject(mqtt, "url", mqtt_url);
     cJSON_AddItemToObject(mqtt, "topic", mqtt_topic);
     cJSON_AddItemToObject(json, "mqtt", mqtt);
+
     cJSON *relay = cJSON_CreateArray();
-    cJSON *port1 = cJSON_CreateBool(g_config.relay.port1);
-    cJSON *port2 = cJSON_CreateBool(g_config.relay.port2);
-    cJSON *port3 = cJSON_CreateBool(g_config.relay.port3);
-    cJSON_AddItemToArray(relay, port1);
-    cJSON_AddItemToArray(relay, port2);
-    cJSON_AddItemToArray(relay, port3);
+    cJSON *relay_port1 = cJSON_CreateBool(g_config.relay.port1);
+    cJSON *relay_port2 = cJSON_CreateBool(g_config.relay.port2);
+    cJSON *relay_port3 = cJSON_CreateBool(g_config.relay.port3);
+    cJSON_AddItemToArray(relay, relay_port1);
+    cJSON_AddItemToArray(relay, relay_port2);
+    cJSON_AddItemToArray(relay, relay_port3);
     cJSON_AddItemToObject(json, "relay", relay);
+
     cJSON *httpd = cJSON_CreateObject();
-    cJSON *username = cJSON_CreateString(data.httpd.username);
-    cJSON *password = cJSON_CreateString(data.httpd.password);
-    cJSON *token = cJSON_CreateString(data.httpd.token);
-    cJSON_AddItemToObject(httpd, "username", username);
-    cJSON_AddItemToObject(httpd, "password", password);
-    cJSON_AddItemToObject(httpd, "token", token);
+    cJSON *httpd_username = cJSON_CreateString(data.httpd.username);
+    cJSON *httpd_password = cJSON_CreateString(data.httpd.password);
+    cJSON *httpd_api_enable = cJSON_CreateBool(data.httpd.api_enable);
+    cJSON *httpd_token = cJSON_CreateString(data.httpd.token);
+    cJSON_AddItemToObject(httpd, "username", httpd_username);
+    cJSON_AddItemToObject(httpd, "password", httpd_password);
+    cJSON_AddItemToObject(httpd, "api_enable", httpd_api_enable);
+    cJSON_AddItemToObject(httpd, "token", httpd_token);
     cJSON_AddItemToObject(json, "httpd", httpd);
+
     cJSON *l_ota = cJSON_CreateObject();
     cJSON *l_ota_state = cJSON_CreateNumber(g_config.ota.state);
-    cJSON *l_ota_url = cJSON_CreateString(g_config.ota.url);
     cJSON *l_ota_version = cJSON_CreateString(g_config.ota.version);
     cJSON_AddItemToObject(l_ota, "state", l_ota_state);
-    cJSON_AddItemToObject(l_ota, "url", l_ota_url);
     cJSON_AddItemToObject(l_ota, "version", l_ota_version);
     cJSON_AddItemToObject(json, "ota", l_ota);
+
     cJSON_PrintPreallocated(json, buffer, sz, false);
     cJSON_Delete(json);
     return strlen(buffer);
@@ -305,13 +325,31 @@ size_t e12aio_config_save_buffer_adv(e12aio_config_t data, char *buffer, size_t 
 
 void e12aio_config_dump()
 {
-    ESP_LOGD(TAG, "WIFI - SSID: %s", g_config.wifi.ssid);
-    ESP_LOGD(TAG, "WIFI - Password: %s", g_config.wifi.password);
+    ESP_LOGD(TAG, "WIFI - AP - Password: %s", g_config.wifi.ap_password);
+    ESP_LOGD(TAG, "WIFI - STA - SSID: %s", g_config.wifi.sta_ssid);
+    ESP_LOGD(TAG, "WIFI - STA - Password: %s", g_config.wifi.sta_password);
+    ESP_LOGD(TAG, "WIFI - DHCP: %s", g_config.wifi.dhcp ? "Enable" : "Disable");
+    ESP_LOGD(TAG, "WIFI - IP: %s", g_config.wifi.ip);
+    ESP_LOGD(TAG, "WIFI - Netmask: %s", g_config.wifi.netmask);
+    ESP_LOGD(TAG, "WIFI - Gateway: %s", g_config.wifi.gateway);
+    ESP_LOGD(TAG, "WIFI - DNS 1: %s", g_config.wifi.dns1);
+    ESP_LOGD(TAG, "WIFI - DNS 2: %s", g_config.wifi.dns2);
+
+    ESP_LOGD(TAG, "MQTT - Enable: %s", g_config.mqtt.enable ? "Enable" : "Disable");
     ESP_LOGD(TAG, "MQTT - URL: %s", g_config.mqtt.url);
     ESP_LOGD(TAG, "MQTT - TOPIC: %s", g_config.mqtt.topic);
+
     ESP_LOGD(TAG, "Relay - Port 1: %s", g_config.relay.port1 ? "true" : "false");
     ESP_LOGD(TAG, "Relay - Port 2: %s", g_config.relay.port2 ? "true" : "false");
     ESP_LOGD(TAG, "Relay - Port 3: %s", g_config.relay.port3 ? "true" : "false");
+
+    ESP_LOGD(TAG, "HTTPD - Username: %s", g_config.httpd.username);
+    ESP_LOGD(TAG, "HTTPD - Password: %s", g_config.httpd.password);
+    ESP_LOGD(TAG, "HTTPD - API: %s", g_config.httpd.api_enable ? "Enable" : "Disable");
+    ESP_LOGD(TAG, "HTTPD - Token: %s", g_config.httpd.token);
+
+    ESP_LOGD(TAG, "OTA - State: %d", g_config.ota.state);
+    ESP_LOGD(TAG, "OTA - Version: %s", g_config.ota.version);
 }
 
 void e12aio_config_wait_load(const char *TAG)

@@ -95,14 +95,14 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 void e12aio_wifi_init_task(void *arg)
 {
     tcpip_adapter_init();
-    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, e12aio_config_get_name());
-    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, e12aio_config_get_name());
-
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH));
+
+    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, e12aio_config_get_name());
+    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, e12aio_config_get_name());
 
     e12aio_config_wait_load(TAG);
     xTaskCreate(e12aio_wifi_check, "wifi_check", 4096, NULL, 5, NULL);
@@ -143,7 +143,7 @@ bool e12aio_wifi_sta_is_available()
     wifi_ap_record_t l_records[l_numRecords];
     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&l_numRecords, l_records));
     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&l_numAvailbleNetworks));
-    const char *l_clientSSID = e12aio_config_get()->wifi.ssid;
+    const char *l_clientSSID = e12aio_config_get()->wifi.sta_ssid;
     for (uint16_t x = 0; x < l_numAvailbleNetworks; x++)
     {
         const char *l_SSID = (char *)(l_records[x].ssid);
@@ -192,10 +192,10 @@ void e12aio_wifi_ap_start()
     xEventGroupSetBits(g_wifi_event_group, E12AIO_WIFI_AP_STARTED);
 
     // AP Mode
-    ESP_LOGI(TAG, "AP: SSID [%s], Password: [%s]", e12aio_config_get_name(), CONFIG_WIFI_AP_PASSWORD);
+    ESP_LOGI(TAG, "AP: SSID [%s], Password: [%s]", e12aio_config_get_name(), e12aio_config_get()->wifi.ap_password);
     memset(&l_conf_ap, 0, sizeof(wifi_config_t));
     strcpy((char *)(l_conf_ap.ap.ssid), e12aio_config_get_name());
-    strcpy((char *)(l_conf_ap.ap.password), CONFIG_WIFI_AP_PASSWORD);
+    strcpy((char *)(l_conf_ap.ap.password), e12aio_config_get()->wifi.ap_password);
     l_conf_ap.ap.max_connection = CONFIG_WIFI_AP_MAX_STA_CONN;
     l_conf_ap.ap.beacon_interval = 100;
     l_conf_ap.ap.ssid_hidden = 0;
@@ -204,11 +204,11 @@ void e12aio_wifi_ap_start()
 
     // STA Mode
     const e12aio_config_t *l_config = e12aio_config_get();
-    ESP_LOGI(TAG, "STA: SSID [%s], Password: [%s]", l_config->wifi.ssid, l_config->wifi.password);
+    ESP_LOGI(TAG, "STA: SSID [%s], Password: [%s]", l_config->wifi.sta_ssid, l_config->wifi.sta_password);
     wifi_config_t l_conf_sta;
     memset(&l_conf_sta, 0, sizeof(wifi_config_t));
-    strcpy((char *)(l_conf_sta.sta.ssid), l_config->wifi.ssid);
-    strcpy((char *)(l_conf_sta.sta.password), l_config->wifi.password);
+    strcpy((char *)(l_conf_sta.sta.ssid), l_config->wifi.sta_ssid);
+    strcpy((char *)(l_conf_sta.sta.password), l_config->wifi.sta_password);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &l_conf_ap));

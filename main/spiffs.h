@@ -22,8 +22,8 @@
 #include <freertos/FreeRTOS.h>
 
 void e12aio_spiffs_init();
-char *e12aio_spiffs_get_basepath();
+const char *e12aio_spiffs_get_basepath();
 bool e12aio_spiffs_has_basepath(char *filename);
-char *e12aio_spiffs_fullpath(char *filename);
-size_t e12aio_spiffs_read(char *filename, char *buffer, size_t sz);
-size_t e12aio_spiffs_write(char *filename, char *buffer, size_t sz);
+const char *e12aio_spiffs_fullpath(char *filename);
+size_t e12aio_spiffs_read(const char *filename, char *buffer, size_t sz);
+size_t e12aio_spiffs_write(const char *filename, char *buffer, size_t sz);

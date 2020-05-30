@@ -15,8 +15,8 @@
 
 #ifdef CONFIG_COMPONENT_OTA
 static const char *TAG = "ota.c";
-const char *ota_file_url_firmware = "/v/firmware.txt";
-const char *ota_file_url_spiffs = "/v/spiffs.txt";
+char *ota_file_url_firmware = "/v/firmware.txt";
+char *ota_file_url_spiffs = "/v/spiffs.txt";
 
 extern const uint8_t server_certs_start[] asm("_binary_allcerts_pem_start");
 extern const uint8_t server_certs_end[] asm("_binary_allcerts_pem_end");
@@ -86,7 +86,7 @@ void e12aio_ota_task(void *args)
     e12aio_wifi_ap_wait_deactive(TAG);
     char *l_cert_pem = (char *)server_certs_start;
     char l_ota_url[E12AIO_OTA_URL_SIZE];
-    e12aio_ota_read_url(&l_ota_url, E12AIO_OTA_URL_SIZE);
+    e12aio_ota_file_read_url_firmware((char *)&l_ota_url, E12AIO_OTA_URL_SIZE);
     ESP_LOGI(TAG, "Starting OTA Update: %s", l_ota_url);
     esp_http_client_config_t config = {
         .url = l_ota_url,
@@ -144,12 +144,12 @@ size_t e12aio_ota_file_write_url_spiffs(char *buffer, size_t sz)
     return e12aio_spiffs_write(ota_file_url_spiffs, buffer, sz);
 }
 
-size_t *e12aio_ota_file_read_url_firmware(char *buffer, size_t sz)
+size_t e12aio_ota_file_read_url_firmware(char *buffer, size_t sz)
 {
     return e12aio_spiffs_read(ota_file_url_firmware, buffer, sz);
 }
 
-size_t *e12aio_ota_file_read_url_spiffs(char *buffer, size_t sz)
+size_t e12aio_ota_file_read_url_spiffs(char *buffer, size_t sz)
 {
     return e12aio_spiffs_read(ota_file_url_spiffs, buffer, sz);
 }

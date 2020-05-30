@@ -148,7 +148,7 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
     ESP_LOGI(TAG, "Serving page file: %s", l_filename);
     do
     {
-        l_size = e12aio_spiffs_read(l_filename, &l_buffer, CONFIG_HTTPD_MAX_URI_LEN);
+        l_size = e12aio_spiffs_read(e12aio_spiffs_fullpath(l_filename), (char *)&l_buffer, CONFIG_HTTPD_MAX_URI_LEN);
         httpd_resp_send_chunk(req, l_buffer, l_size);
     } while (l_size == CONFIG_HTTPD_MAX_URI_LEN);
 
@@ -313,7 +313,10 @@ esp_err_t e12aio_httpd_handler_action(httpd_req_t *req)
 #ifdef CONFIG_COMPONENT_OTA
         char l_url[E12AIO_OTA_URL_SIZE];
         httpd_query_key_value(l_buffer, "url", (char *)&l_url, E12AIO_OTA_URL_SIZE);
-        e12aio_ota_start(l_url);
+        //TODO: Convert from GET to POST (permitting a use of larger URLs like GitHub, OneDrive, etc.).
+        e12aio_ota_file_write_url_firmware(l_url, strlen(l_url));
+        e12aio_ota_file_write_url_firmware(NULL, 0);
+        e12aio_ota_start();
         httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
         return ESP_OK;
 #endif
