@@ -138,8 +138,10 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
     l_size = httpd_req_get_url_query_len(req);
     if (l_size > 0)
     {
+        char l_partialFileName[E12AIO_MAX_FILENAME];
         httpd_req_get_url_query_str(req, l_buffer, CONFIG_HTTPD_MAX_URI_LEN);
-        httpd_query_key_value(l_buffer, "file", l_filename, E12AIO_MAX_FILENAME);
+        httpd_query_key_value(l_buffer, "file", l_partialFileName, E12AIO_MAX_FILENAME);
+        snprintf(l_filename, E12AIO_MAX_FILENAME, "%s/%s", e12aio_spiffs_get_basepath(), l_partialFileName);
     }
     else
         strcpy(l_filename, "/v/index.html");
@@ -148,7 +150,7 @@ esp_err_t e12aio_httpd_handler_spiffs(httpd_req_t *req)
     ESP_LOGI(TAG, "Serving page file: %s", l_filename);
     do
     {
-        l_size = e12aio_spiffs_read(e12aio_spiffs_fullpath(l_filename), (char *)&l_buffer, CONFIG_HTTPD_MAX_URI_LEN);
+        l_size = e12aio_spiffs_read(l_filename, (char *)&l_buffer, CONFIG_HTTPD_MAX_URI_LEN);
         httpd_resp_send_chunk(req, l_buffer, l_size);
     } while (l_size == CONFIG_HTTPD_MAX_URI_LEN);
 

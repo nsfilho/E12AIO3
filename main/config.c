@@ -52,7 +52,7 @@ void e12aio_config_init()
     {
         s_initialized = true;
         g_eventGroup = xEventGroupCreate();
-        xTaskCreate(e12aio_config_init_task, "config_init", 2048, NULL, 15, NULL);
+        xTaskCreate(e12aio_config_init_task, "config_init", 3072, NULL, 15, NULL);
     }
     else
     {
@@ -248,6 +248,7 @@ void e12aio_config_save()
     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
     size_t l_len = e12aio_config_save_buffer_adv(g_config, (char *)l_buffer, CONFIG_JSON_BUFFER_SIZE);
     e12aio_spiffs_write(g_config_file, l_buffer, l_len);
+    e12aio_spiffs_write(g_config_file, NULL, 0);
     xEventGroupClearBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
 }
 

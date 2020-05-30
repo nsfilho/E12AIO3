@@ -23,7 +23,7 @@
 
 void e12aio_spiffs_init();
 const char *e12aio_spiffs_get_basepath();
-bool e12aio_spiffs_has_basepath(char *filename);
-const char *e12aio_spiffs_fullpath(char *filename);
+// bool e12aio_spiffs_has_basepath(char *filename);
+// const char *e12aio_spiffs_fullpath(char *filename);
 size_t e12aio_spiffs_read(const char *filename, char *buffer, size_t sz);
 size_t e12aio_spiffs_write(const char *filename, char *buffer, size_t sz);

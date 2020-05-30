@@ -64,19 +64,19 @@ const char *e12aio_spiffs_get_basepath()
     return g_basePath;
 }
 
-bool e12aio_spiffs_has_basepath(char *filename)
-{
-    return (strlen(filename) > (strlen(g_basePath) + 1) &&
-            strncmp(g_basePath, filename, strlen(g_basePath)) == 0 &&
-            filename[strlen(g_basePath + 1)] == '/');
-}
+// bool e12aio_spiffs_has_basepath(char *filename)
+// {
+//     return (strlen(filename) > (sizeof(g_basePath) + 1) &&
+//             strncmp(g_basePath, filename, strlen(g_basePath)) == 0 &&
+//             filename[strlen(g_basePath)] == '/');
+// }
 
-const char *e12aio_spiffs_fullpath(char *filename)
-{
-    if (!e12aio_spiffs_has_basepath(filename))
-        sprintf(filename, "%s/%s", g_basePath, filename);
-    return (const char *)filename;
-}
+// const char *e12aio_spiffs_fullpath(char *filename)
+// {
+//     if (!e12aio_spiffs_has_basepath(filename))
+//         sprintf(filename, "%s/%s", g_basePath, filename);
+//     return (const char *)filename;
+// }
 
 /**
  * @brief This function allows you to write file of any size.
@@ -117,10 +117,10 @@ size_t e12aio_spiffs_write(const char *filename, char *buffer, size_t sz)
 size_t e12aio_spiffs_read(const char *filename, char *buffer, size_t sz)
 {
     static FILE *s_fp = NULL;
-    static size_t s_totalSize = 0;
+    //static size_t s_totalSize = 0;
     if (s_fp == NULL && filename != NULL)
     {
-        s_totalSize = 0;
+        //s_totalSize = 0;
         s_fp = fopen(filename, "r");
         if (s_fp == NULL)
         {
@@ -130,8 +130,11 @@ size_t e12aio_spiffs_read(const char *filename, char *buffer, size_t sz)
         }
     }
     size_t l_sz = fread(buffer, 1, sz, s_fp);
-    s_totalSize += l_sz;
+    //s_totalSize += l_sz;
     if (l_sz < sz)
+    {
         fclose(s_fp);
-    return s_totalSize;
+        s_fp = NULL;
+    }
+    return l_sz;
 }

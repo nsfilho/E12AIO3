@@ -33,7 +33,7 @@ endmenu
 menu "Config Component"
     config JSON_BUFFER_SIZE
         int "JSON Buffer Size (bytes)"
-        default 512
+        default 1024
         help
             Size of json buffer to manipulate config file.
 
