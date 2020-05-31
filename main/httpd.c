@@ -167,7 +167,7 @@ esp_err_t e12aio_httpd_handler_save(httpd_req_t *req)
     httpd_req_recv(req, (char *)&l_buffer, CONFIG_JSON_BUFFER_SIZE);
     l_buffer[req->content_len] = 0;
     e12aio_config_load_from_buffer(l_buffer);
-    e12aio_config_save();
+    e12aio_config_lazy_save_after(0);
     httpd_resp_send(req, l_buffer, strlen(l_buffer));
     return ESP_OK;
 }

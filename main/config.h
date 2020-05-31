@@ -24,6 +24,7 @@
 #define E12AIO_CONFIG_LOADED BIT0
 #define E12AIO_CONFIG_SAVED BIT1
 #define E12AIO_CONFIG_DELAYED_SAVE BIT2
+#define E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW BIT3
 
 #define E12AIO_WIFI_SSID_SIZE 32
 #define E12AIO_WIFI_PASSWORD_SIZE 64
@@ -112,6 +113,7 @@ char *e12aio_config_get_name();
 void e12aio_config_prepare_configs();
 void e12aio_config_lazy_save();
 bool e12aio_config_lazy_started();
+void e12aio_config_lazy_save_after(unsigned long delay);
 void e12aio_config_load();
 void e12aio_config_load_from_buffer(const char *buffer);
 void e12aio_config_save();

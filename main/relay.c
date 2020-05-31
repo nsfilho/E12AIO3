@@ -64,20 +64,25 @@ void e12aio_relay_set(uint8_t relay, bool status)
 {
     if (e12aio_relay_get(relay) != status)
     {
-        ESP_LOGD(TAG, "Changing relay [%d] to [%d]", relay, status ? 1 : 0);
+        esp_err_t result = ESP_OK;
         switch (relay)
         {
         case 1:
-            gpio_set_level(RELAY1, status ? 1 : 0);
+            result = gpio_set_level(RELAY1, status ? 1 : 0);
             break;
         case 2:
-            gpio_set_level(RELAY2, status ? 1 : 0);
+            result = gpio_set_level(RELAY2, status ? 1 : 0);
             break;
         case 3:
-            gpio_set_level(RELAY3, status ? 1 : 0);
+            result = gpio_set_level(RELAY3, status ? 1 : 0);
             break;
         }
         e12aio_config_relay_set(relay, status);
+        ESP_LOGI(TAG, "Changed relay [%d] to [%d], result: %d", relay, status ? 1 : 0, result);
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Relay [%d] already is [%d]", relay, status ? 1 : 0);
     }
 }
 

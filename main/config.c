@@ -101,7 +101,8 @@ void e12aio_config_prepare_configs()
  */
 void e12aio_config_lazy_save_task(void *args)
 {
-    vTaskDelay(CONFIG_SAVE_LAZY_TIMEOUT / portTICK_PERIOD_MS);
+    const unsigned long *time = (unsigned long *)args;
+    xEventGroupWaitBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW, pdTRUE, pdTRUE, *time / portTICK_PERIOD_MS);
     if (xEventGroupGetBits(g_eventGroup) & E12AIO_CONFIG_DELAYED_SAVE)
     {
         e12aio_config_save();
@@ -115,11 +116,24 @@ void e12aio_config_lazy_save_task(void *args)
  */
 void e12aio_config_lazy_save()
 {
+    e12aio_config_lazy_save_after(CONFIG_SAVE_LAZY_TIMEOUT);
+}
+
+/**
+ * Save all your configurations in a lazy mode (avoid to many simultaenous write) after some delay milliseconds
+ */
+void e12aio_config_lazy_save_after(unsigned long delay)
+{
     if (!(xEventGroupGetBits(g_eventGroup) & E12AIO_CONFIG_DELAYED_SAVE))
     {
         ESP_LOGI(TAG, "Creating a lazy saving task");
         xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
-        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 4096, NULL, 1, NULL);
+        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 4096, &delay, 1, NULL);
+    }
+    else if (delay == 0)
+    {
+        // make save right now!
+        xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW);
     }
     else
     {
@@ -250,6 +264,7 @@ void e12aio_config_save()
     e12aio_spiffs_write(g_config_file, l_buffer, l_len);
     e12aio_spiffs_write(g_config_file, NULL, 0);
     xEventGroupClearBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
+    ESP_LOGI(TAG, "All configurations was saved!");
 }
 
 size_t e12aio_config_save_buffer(char *buffer, size_t sz)
@@ -382,13 +397,13 @@ bool *e12aio_config_relay_pointer(uint8_t relay)
     switch (relay)
     {
     case 1:
-        l_port = &g_config.relay.port1;
+        l_port = &(g_config.relay.port1);
         break;
     case 2:
-        l_port = &g_config.relay.port2;
+        l_port = &(g_config.relay.port2);
         break;
     case 3:
-        l_port = &g_config.relay.port2;
+        l_port = &(g_config.relay.port3);
         break;
     }
     return l_port;
