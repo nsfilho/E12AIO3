@@ -316,7 +316,7 @@ esp_err_t e12aio_httpd_handler_action(httpd_req_t *req)
         char l_url[E12AIO_OTA_URL_SIZE];
         httpd_query_key_value(l_buffer, "url", (char *)&l_url, E12AIO_OTA_URL_SIZE);
         //TODO: Convert from GET to POST (permitting a use of larger URLs like GitHub, OneDrive, etc.).
-        e12aio_ota_file_write_url_firmware(l_url, strlen(l_url));
+        e12aio_ota_file_write_url_firmware(l_url, strlen(l_url) + 1);
         e12aio_ota_file_write_url_firmware(NULL, 0);
         e12aio_ota_start();
         httpd_resp_send(req, g_static_resp, strlen(g_static_resp));
