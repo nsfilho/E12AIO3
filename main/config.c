@@ -102,9 +102,9 @@ void e12aio_config_prepare_configs()
  */
 void e12aio_config_lazy_save_task(void *args)
 {
-    const unsigned long *time = (unsigned long *)args;
-    ESP_LOGD(TAG, "Waiting time: %lu", *time);
-    xEventGroupWaitBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW, pdTRUE, pdTRUE, *time / portTICK_PERIOD_MS);
+    unsigned long time = (unsigned long)args;
+    ESP_LOGD(TAG, "Waiting time: %lu", time);
+    xEventGroupWaitBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW, pdTRUE, pdTRUE, time / portTICK_PERIOD_MS);
     if (xEventGroupGetBits(g_eventGroup) & E12AIO_CONFIG_DELAYED_SAVE)
     {
         e12aio_config_save();
@@ -128,9 +128,10 @@ void e12aio_config_lazy_save_after(const unsigned long delay)
 {
     if (!e12aio_config_lazy_started())
     {
-        ESP_LOGI(TAG, "Creating a lazy saving task");
+        ESP_LOGI(TAG, "Creating a lazy saving task: %lu", delay);
         xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
-        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 4096, (void *)&delay, 1, NULL);
+        xEventGroupClearBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW);
+        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 4096, (void *)delay, 1, NULL);
     }
     else if (delay == 0)
     {

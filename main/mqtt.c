@@ -18,11 +18,18 @@
  * Author: Nelio Santos <nsfilho@icloud.com>
  * Repository: https://github.com/nsfilho/E12AIO3
  */
+/**
+ * 2020-07-19 - Big change in this routines. Some examples:
+ * - changed the way to process messages (continuous via queue)
+ * - changed the way to solve disconnects (future)
+ * - implementing queue to send (for control delay in a unique point) (future)
+ */
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/queue.h>
 #include <freertos/event_groups.h>
 #include <esp_system.h>
 #include <esp_log.h>
@@ -36,12 +43,14 @@
 #include "mqtt.h"
 #include "utils.h"
 
-#ifdef CONFIG_COMPONENT_MQTT
 static const char *TAG = "mqtt.c";
+
+#ifdef CONFIG_COMPONENT_MQTT
+static const uint16_t g_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
 static EventGroupHandle_t g_mqtt_event_group;
 static esp_mqtt_client_handle_t g_client = NULL;
-
-const uint16_t g_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
+QueueHandle_t g_mqtt_messages_received;
+// QueueHandle_t g_mqtt_messages_tosend;
 
 /**
  * @brief Handle MQTT Events inside the stack
@@ -50,6 +59,7 @@ const uint16_t g_delay = CONFIG_MQTT_DELAY_RUSH_PACKAGE / portTICK_PERIOD_MS;
 static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
     static TaskHandle_t s_keepAlive = NULL;
+    static TaskHandle_t s_received = NULL;
     switch (event->event_id)
     {
     case MQTT_EVENT_CONNECTED:
@@ -57,12 +67,17 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         xEventGroupSetBits(g_mqtt_event_group, E12AIO_MQTT_CONNECTED);
         xTaskCreate(e12aio_mqtt_online_task, "mqtt_online", 2048, NULL, 5, NULL);
         xTaskCreate(e12aio_mqtt_keep_alive_task, "mqtt_keepalive", 2048, NULL, 2, &s_keepAlive);
+        xTaskCreate(e12aio_mqtt_received_task, "mqtt_received", 4096, NULL, 10, &s_received);
         break;
     case MQTT_EVENT_DISCONNECTED:
+        portENTER_CRITICAL();
         ESP_LOGD(TAG, "MQTT_EVENT_DISCONNECTED");
         xEventGroupClearBits(g_mqtt_event_group, E12AIO_MQTT_CONNECTED);
         if (s_keepAlive != NULL)
             vTaskDelete(s_keepAlive);
+        if (s_received != NULL)
+            vTaskDelete(s_received);
+        portEXIT_CRITICAL();
         xTaskCreate(e12aio_mqtt_disconnect_task, "mqtt_disconnect", 2048, NULL, 5, NULL);
         break;
     case MQTT_EVENT_SUBSCRIBED:
@@ -78,13 +93,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
         {
             e12aio_mqtt_received_message msg;
-            msg.topic = pvPortMalloc(event->topic_len + 1);
-            msg.payload = pvPortMalloc(event->data_len + 1);
-            memset(msg.topic, 0, event->topic_len + 1);
-            memset(msg.payload, 0, event->data_len + 1);
-            strncpy(msg.topic, event->topic, event->topic_len);
-            strncpy(msg.payload, event->data, event->data_len);
-            xTaskCreate(e12aio_mqtt_received_task, "mqtt_msg", 2048, &msg, 10, NULL);
+            memset(&msg.topic, 0, CONFIG_MQTT_TOPIC_SIZE);
+            memset(&msg.payload, 0, CONFIG_MQTT_PAYLOAD_SIZE);
+            memcpy(&msg.topic, event->topic, event->topic_len);
+            memcpy(&msg.payload, event->data, event->data_len);
+            if (xQueueSend(g_mqtt_messages_received, &msg, g_delay) != pdTRUE)
+                ESP_LOGE(TAG, "Error enqueuing message: [%s] -> [%s]", msg.topic, msg.payload);
         }
         break;
     case MQTT_EVENT_ERROR:
@@ -94,27 +108,19 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     return ESP_OK;
 }
 
+/**
+ * Initialize and setup mqtt component
+ */
 void e12aio_mqtt_init_task(void *arg)
 {
-    ESP_LOGD(TAG, "MQTT init task called...");
     e12aio_config_wait_load(TAG);
+    ESP_LOGD(TAG, "MQTT init task called...");
+    g_mqtt_messages_received = xQueueCreate(8, sizeof(e12aio_mqtt_received_message));
+    // g_mqtt_messages_tosend = xQueueCreate(20, sizeof(e12aio_mqtt_received_message));
     e12aio_mqtt_connect();
     vTaskDelete(NULL);
 }
-#endif
 
-/**
- * Main initialization, generally called in app_main after priority tasks.
- */
-void e12aio_mqtt_init()
-{
-#ifdef CONFIG_COMPONENT_MQTT
-    g_mqtt_event_group = xEventGroupCreate();
-    xTaskCreate(e12aio_mqtt_init_task, "mqtt_init", 2048, NULL, 5, NULL);
-#endif
-}
-
-#ifdef CONFIG_COMPONENT_MQTT
 /**
  * Routine called after any configuration update. Most of the time, it is a callback function.
  */
@@ -135,6 +141,9 @@ void e12aio_mqtt_connect()
     esp_mqtt_client_config_t mqtt_cfg = {
         .event_handle = mqtt_event_handler,
         .uri = l_config->mqtt.url,
+        .disable_auto_reconnect = false,
+        .task_prio = 15,
+        .keepalive = 60,
     };
     g_client = esp_mqtt_client_init(&mqtt_cfg);
     e12aio_wifi_sta_wait_connect(TAG);
@@ -243,7 +252,7 @@ void e12aio_mqtt_hass_sensor_config(const char *name)
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "sensor", name, -1, "config");
     e12aio_mqtt_hass_sensor_config_payload(l_payload, CONFIG_MQTT_PAYLOAD_SIZE, name);
-    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 2, 0);
+    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 2, 1);
     vTaskDelay(g_delay);
 }
 
@@ -297,7 +306,7 @@ void e12aio_mqtt_hass_relay(uint8_t relay)
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, "config");
     e12aio_mqtt_hass_switch_config_payload(l_payload, CONFIG_MQTT_PAYLOAD_SIZE, relay);
-    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 2, 0);
+    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 2, 1);
     vTaskDelay(g_delay);
 }
 
@@ -326,7 +335,17 @@ void e12aio_mqtt_relay_subscribe_status(uint8_t relay)
 {
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, "set");
-    esp_mqtt_client_subscribe(g_client, l_topic, 1);
+    esp_mqtt_client_subscribe(g_client, l_topic, 2);
+}
+
+/**
+ * Method for subscribe to all relay channels
+ */
+void e12aio_mqtt_relay_subscribe_all()
+{
+    char l_topic[CONFIG_MQTT_TOPIC_SIZE];
+    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "+", -1, "set");
+    esp_mqtt_client_subscribe(g_client, l_topic, 2);
 }
 
 /**
@@ -352,9 +371,10 @@ void e12aio_mqtt_hass_sensors()
 void e12aio_mqtt_online_task(void *arg)
 {
     e12aio_mqtt_hass_sensors();
+    e12aio_mqtt_relay_subscribe_all();
     for (uint8_t l_x = 1; l_x < 4; l_x++)
     {
-        e12aio_mqtt_relay_subscribe_status(l_x);
+        // e12aio_mqtt_relay_subscribe_status(l_x);
         e12aio_mqtt_hass_relay(l_x);
         e12aio_mqtt_relay_send_status(l_x);
         vTaskDelay(g_delay);
@@ -389,74 +409,95 @@ bool e12aio_mqtt_is_connected()
  */
 void e12aio_mqtt_received_task(void *arg)
 {
-    e12aio_mqtt_received_message *msg = (e12aio_mqtt_received_message *)arg;
-    ESP_LOGD(TAG, "Topic: %s - Payload: %s", msg->topic, msg->payload);
-
-    // unique buffer to test any kind of topic
-    size_t l_len = 0;
-    char l_topic[CONFIG_MQTT_TOPIC_SIZE];
-
-    // Discovery what kind of topic is
-    if (strstr(msg->topic, "/switch/") != NULL)
+    e12aio_mqtt_received_message msg;
+    for (;;)
     {
-#ifdef CONFIG_COMPONENT_RELAY
-        for (uint8_t l_x = 1; l_x < 4; l_x++)
+        if (xQueueReceive(g_mqtt_messages_received, &msg, portMAX_DELAY) == pdTRUE)
         {
-            l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", l_x, "set");
-            if (strncmp(msg->topic, l_topic, l_len) == 0)
+            ESP_LOGD(TAG, "Topic: %s - Payload: %s", msg.topic, msg.payload);
+
+            // unique buffer to test any kind of topic
+            size_t l_len = 0;
+            char l_topic[CONFIG_MQTT_TOPIC_SIZE];
+
+            // Discovery what kind of topic is
+            if (strstr(msg.topic, "/switch/") != NULL)
             {
-                bool l_status = strcmp(msg->payload, "ON") == 0;
-                e12aio_relay_set(l_x, l_status);
-                e12aio_mqtt_relay_send_status(l_x);
+#ifdef CONFIG_COMPONENT_RELAY
+                for (uint8_t l_x = 1; l_x < 4; l_x++)
+                {
+                    l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", l_x, "set");
+                    if (strncmp(msg.topic, l_topic, l_len) == 0)
+                    {
+                        bool l_status = strcmp(msg.payload, "ON") == 0;
+                        e12aio_relay_set(l_x, l_status);
+                        e12aio_mqtt_relay_send_status(l_x);
+                    }
+                }
+#endif
+            }
+            else if (strstr(msg.topic, "/action/") != NULL)
+            {
+                // // test config/set
+                // l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "set");
+                // if (strncmp(msg.topic, l_topic, l_len) == 0)
+                // {
+                //     e12aio_config_load_from_buffer(msg.payload);
+                //     e12aio_config_lazy_save();
+                // }
+                // // test config/get
+                // l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "get");
+                // if (strncmp(msg.topic, l_topic, l_len) == 0)
+                // {
+                //     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+                //     e12aio_config_save_buffer(l_buffer, CONFIG_JSON_BUFFER_SIZE);
+                //     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, NULL);
+                //     esp_mqtt_client_publish(g_client, l_topic, l_buffer, strlen(l_buffer), 1, 0);
+                // }
+                // test restart/set
+                l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "restart", -1, "set");
+                if (strncmp(msg.topic, l_topic, l_len) == 0)
+                {
+                    esp_restart();
+                }
             }
         }
-#endif
     }
-    else if (strstr(msg->topic, "/action/") != NULL)
-    {
-        // // test config/set
-        // l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "set");
-        // if (strncmp(msg->topic, l_topic, l_len) == 0)
-        // {
-        //     e12aio_config_load_from_buffer(msg->payload);
-        //     e12aio_config_lazy_save();
-        // }
-        // // test config/get
-        // l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "get");
-        // if (strncmp(msg->topic, l_topic, l_len) == 0)
-        // {
-        //     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-        //     e12aio_config_save_buffer(l_buffer, CONFIG_JSON_BUFFER_SIZE);
-        //     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, NULL);
-        //     esp_mqtt_client_publish(g_client, l_topic, l_buffer, strlen(l_buffer), 1, 0);
-        // }
-        // test restart/set
-        l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "restart", -1, "set");
-        if (strncmp(msg->topic, l_topic, l_len) == 0)
-        {
-            esp_restart();
-        }
-    }
-    vPortFree(msg->topic);
-    vPortFree(msg->payload);
-    vTaskDelete(NULL);
 }
 
 void e12aio_mqtt_subscribe_actions()
 {
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
-    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "get");
-    esp_mqtt_client_subscribe(g_client, l_topic, 1);
+    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "#", -1, NULL);
+    esp_mqtt_client_subscribe(g_client, l_topic, 2);
     vTaskDelay(g_delay);
-    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "set");
-    esp_mqtt_client_subscribe(g_client, l_topic, 1);
-    vTaskDelay(g_delay);
-    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "scan", -1, "get");
-    esp_mqtt_client_subscribe(g_client, l_topic, 1);
-    vTaskDelay(g_delay);
-    e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "restart", -1, "set");
-    esp_mqtt_client_subscribe(g_client, l_topic, 1);
-    vTaskDelay(g_delay);
+
+    // e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "get");
+    // esp_mqtt_client_subscribe(g_client, l_topic, 2);
+    // vTaskDelay(g_delay);
+    // e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "set");
+    // esp_mqtt_client_subscribe(g_client, l_topic, 2);
+    // vTaskDelay(g_delay);
+    // e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "scan", -1, "get");
+    // esp_mqtt_client_subscribe(g_client, l_topic, 2);
+    // vTaskDelay(g_delay);
+    // e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "restart", -1, "set");
+    // esp_mqtt_client_subscribe(g_client, l_topic, 2);
+    // vTaskDelay(g_delay);
 }
 
+/**
+ * Main initialization, generally called in app_main after priority tasks.
+ */
+void e12aio_mqtt_init()
+{
+    g_mqtt_event_group = xEventGroupCreate();
+    xTaskCreate(e12aio_mqtt_init_task, "mqtt_init", 2048, NULL, 5, NULL);
+}
+
+#else
+void e12aio_mqtt_init()
+{
+    ESP_LOGD(TAG, "MQTT was disable in compiler configuration flags");
+}
 #endif

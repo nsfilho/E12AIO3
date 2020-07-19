@@ -25,8 +25,8 @@
 
 typedef struct
 {
-    char *topic;
-    char *payload;
+    char topic[CONFIG_MQTT_TOPIC_SIZE];
+    char payload[CONFIG_MQTT_PAYLOAD_SIZE];
 } e12aio_mqtt_received_message;
 
 void e12aio_mqtt_init_task();
