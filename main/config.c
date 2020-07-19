@@ -42,6 +42,7 @@ void e12aio_config_init_task(void *arg)
     e12aio_spiffs_init();
     e12aio_config_prepare_configs();
     xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_LOADED);
+    xEventGroupClearBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW);
     vTaskDelete(NULL);
 }
 
@@ -102,6 +103,7 @@ void e12aio_config_prepare_configs()
 void e12aio_config_lazy_save_task(void *args)
 {
     const unsigned long *time = (unsigned long *)args;
+    ESP_LOGD(TAG, "Waiting time: %lu", *time);
     xEventGroupWaitBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW, pdTRUE, pdTRUE, *time / portTICK_PERIOD_MS);
     if (xEventGroupGetBits(g_eventGroup) & E12AIO_CONFIG_DELAYED_SAVE)
     {
@@ -122,22 +124,23 @@ void e12aio_config_lazy_save()
 /**
  * Save all your configurations in a lazy mode (avoid to many simultaenous write) after some delay milliseconds
  */
-void e12aio_config_lazy_save_after(unsigned long delay)
+void e12aio_config_lazy_save_after(const unsigned long delay)
 {
-    if (!(xEventGroupGetBits(g_eventGroup) & E12AIO_CONFIG_DELAYED_SAVE))
+    if (!e12aio_config_lazy_started())
     {
         ESP_LOGI(TAG, "Creating a lazy saving task");
         xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE);
-        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 4096, &delay, 1, NULL);
+        xTaskCreate(e12aio_config_lazy_save_task, "config_lazy_save", 4096, (void *)&delay, 1, NULL);
     }
     else if (delay == 0)
     {
         // make save right now!
+        ESP_LOGD(TAG, "Invoked to save right now");
         xEventGroupSetBits(g_eventGroup, E12AIO_CONFIG_DELAYED_SAVE_RIGHTNOW);
     }
     else
     {
-        ESP_LOGD(TAG, "A lazy saving was already invoked...");
+        ESP_LOGD(TAG, "A lazy saving was already invoked");
     }
 }
 
@@ -414,6 +417,9 @@ void e12aio_config_relay_set(uint8_t relay, bool status)
     e12aio_config_relay_set_adv(relay, status, true);
 }
 
+/**
+ * Relay set advanced with a little more parameters.
+ */
 void e12aio_config_relay_set_adv(uint8_t relay, bool status, bool save)
 {
     bool *l_port = e12aio_config_relay_pointer(relay);

@@ -161,6 +161,8 @@ SET: <baseTopic>/action/e12aio3_<id>/config/set, PAYLOAD: { .... json bellow ...
 RES: <baseTopic>/action/e12aio3_<id>/config, PAYLOAD: { ... json bellow... }
 ```
 
+> In version 2.2.x this functionallity (config/get or config/set) are disabled.
+
 ```
 SET: <baseTopic>/action/e12aio3_<id>/restart/set, PAYLOAD: yes
 ```

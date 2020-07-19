@@ -23,13 +23,19 @@
 #define E12AIO_MQTT_CONNECTED BIT0
 #define E12AIO_MQTT_DISCONNECTED BIT1
 
+typedef struct
+{
+    char *topic;
+    char *payload;
+} e12aio_mqtt_received_message;
+
 void e12aio_mqtt_init_task();
 void e12aio_mqtt_init();
 void e12aio_mqtt_restart();
 void e12aio_mqtt_connect();
-void e12aio_mqtt_disconnect();
-void e12aio_mqtt_online_send();
-void e12aio_mqtt_received(const char *topic, const char *payload);
+void e12aio_mqtt_disconnect_task(void *arg);
+void e12aio_mqtt_online_task(void *arg);
+void e12aio_mqtt_received_task(void *arg);
 void e12aio_mqtt_subscribe_actions();
 void e12aio_mqtt_keep_alive_task(void *arg);
 void e12aio_mqtt_keep_alive_send();

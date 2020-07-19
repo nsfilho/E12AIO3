@@ -26,6 +26,7 @@
 #include <esp_system.h>
 #include <esp_event.h>
 #include <esp_event_loop.h>
+#include <esp_netif.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -41,6 +42,7 @@
 
 static const char *TAG = "wifi.c";
 static EventGroupHandle_t g_wifi_event_group;
+static TaskHandle_t g_task_wifi_check = NULL;
 
 /**
  * @brief Internal function to handle wifi stages
@@ -82,9 +84,10 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
     case SYSTEM_EVENT_STA_DISCONNECTED:
         ESP_LOGE(TAG, "STA: Disconnect reason 0x%04x", l_info->disconnected.reason);
         if (l_info->disconnected.reason == WIFI_REASON_BASIC_RATE_NOT_SUPPORT)
-            ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCAL_11B | WIFI_PROTOCAL_11G | WIFI_PROTOCAL_11N));
+            ESP_ERROR_CHECK(esp_wifi_set_protocol(ESP_IF_WIFI_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N));
         xEventGroupClearBits(g_wifi_event_group, E12AIO_WIFI_CONNECTED);
-        xTaskCreate(e12aio_wifi_check, "wifi_check", 4096, NULL, 5, NULL);
+        if (g_task_wifi_check == NULL)
+            xTaskCreate(e12aio_wifi_check, "wifi_check", 4096, NULL, 5, &g_task_wifi_check);
         break;
     default:
         break;
@@ -94,18 +97,15 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
 void e12aio_wifi_init_task(void *arg)
 {
-    tcpip_adapter_init();
-    ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
-
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH));
-
-    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, e12aio_config_get_name());
-    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, e12aio_config_get_name());
-
     e12aio_config_wait_load(TAG);
-    xTaskCreate(e12aio_wifi_check, "wifi_check", 4096, NULL, 5, NULL);
+    // ESP_ERROR_CHECK(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, e12aio_config_get_name()));
+    // ESP_ERROR_CHECK(tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, e12aio_config_get_name()));
+    xTaskCreate(e12aio_wifi_check, "wifi_check", 4096, NULL, 5, &g_task_wifi_check);
     vTaskDelete(NULL);
 }
 
@@ -161,60 +161,72 @@ void e12aio_wifi_check(void *args)
 
     // Check until network is available
     const uint16_t l_delay = CONFIG_WIFI_SCAN_RETRY / portTICK_PERIOD_MS;
-    bool l_isConnected = false;
-    for (; !l_isConnected;)
+    for (; !e12aio_wifi_sta_is_connected();)
     {
-        l_isConnected = xEventGroupGetBits(g_wifi_event_group) & E12AIO_WIFI_CONNECTED;
-        if (!l_isConnected)
-        {
-            if (e12aio_wifi_sta_is_available())
-                e12aio_wifi_sta_connect();
-            vTaskDelay(l_delay);
-        }
+        if (e12aio_wifi_sta_is_available() && !e12aio_wifi_sta_is_connected())
+            e12aio_wifi_sta_connect();
+        vTaskDelay(l_delay);
     }
     // after connected, change mode to STA only
     ESP_LOGD(TAG, "STA: Changing connection to STA only");
+    taskENTER_CRITICAL();
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     xEventGroupClearBits(g_wifi_event_group, E12AIO_WIFI_AP_STARTED);
+    g_task_wifi_check = NULL;
+    taskEXIT_CRITICAL();
     vTaskDelete(NULL);
 }
 
 void e12aio_wifi_ap_start()
 {
     static bool s_wifi_started = false;
-    wifi_config_t l_conf_ap;
     if (s_wifi_started)
     {
         esp_wifi_disconnect();
         esp_wifi_stop();
     }
 
-    xEventGroupSetBits(g_wifi_event_group, E12AIO_WIFI_AP_STARTED);
+    const e12aio_config_t *l_config = e12aio_config_get();
+    const char *board_name = e12aio_config_get_name();
 
     // AP Mode
-    ESP_LOGI(TAG, "AP: SSID [%s], Password: [%s]", e12aio_config_get_name(), e12aio_config_get()->wifi.ap_password);
+    wifi_config_t l_conf_ap;
     memset(&l_conf_ap, 0, sizeof(wifi_config_t));
-    strcpy((char *)(l_conf_ap.ap.ssid), e12aio_config_get_name());
-    strcpy((char *)(l_conf_ap.ap.password), e12aio_config_get()->wifi.ap_password);
     l_conf_ap.ap.max_connection = CONFIG_WIFI_AP_MAX_STA_CONN;
     l_conf_ap.ap.beacon_interval = 100;
     l_conf_ap.ap.ssid_hidden = 0;
-    l_conf_ap.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
-    l_conf_ap.ap.channel = 0;
+    l_conf_ap.ap.ssid_len = strlen(board_name);
+    l_conf_ap.ap.ssid_len = 0;
+    memcpy(&l_conf_ap.ap.ssid, board_name, sizeof(l_conf_ap.ap.ssid));
+    if (strlen(l_config->wifi.ap_password) > 0)
+    {
+        memcpy(&l_conf_ap.ap.password, l_config->wifi.ap_password, sizeof(l_conf_ap.ap.password));
+        l_conf_ap.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    }
+    else
+        l_conf_ap.ap.authmode = WIFI_AUTH_OPEN;
 
     // STA Mode
-    const e12aio_config_t *l_config = e12aio_config_get();
-    ESP_LOGI(TAG, "STA: SSID [%s], Password: [%s]", l_config->wifi.sta_ssid, l_config->wifi.sta_password);
     wifi_config_t l_conf_sta;
     memset(&l_conf_sta, 0, sizeof(wifi_config_t));
-    strcpy((char *)(l_conf_sta.sta.ssid), l_config->wifi.sta_ssid);
-    strcpy((char *)(l_conf_sta.sta.password), l_config->wifi.sta_password);
+    memcpy(&l_conf_sta.sta.ssid, l_config->wifi.sta_ssid, sizeof(l_conf_sta.sta.ssid));
+    memcpy(&l_conf_sta.sta.password, l_config->wifi.sta_password, sizeof(l_conf_sta.sta.password));
 
+    // Show configurations
+    ESP_LOGI(TAG, "AP: SSID [%s], Password: [%s]", l_conf_ap.ap.ssid, l_conf_ap.ap.password);
+    ESP_LOGI(TAG, "STA: SSID [%s], Password: [%s]", l_conf_sta.sta.ssid, l_conf_sta.sta.password);
+
+    // Setting all configurations
+    taskENTER_CRITICAL();
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &l_conf_ap));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &l_conf_sta));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &l_conf_ap));
     ESP_ERROR_CHECK(esp_wifi_start());
+    taskEXIT_CRITICAL();
+
+    // Status report
     s_wifi_started = true;
+    xEventGroupSetBits(g_wifi_event_group, E12AIO_WIFI_AP_STARTED);
 }
 
 bool e12aio_wifi_ap_is_active()
@@ -313,5 +325,12 @@ void e12aio_wifi_sta_wait_connect(const char *TAG)
 {
     ESP_LOGD(TAG, "waiting until wifi connect as STA");
     xEventGroupWaitBits(g_wifi_event_group, E12AIO_WIFI_CONNECTED, pdFALSE, pdTRUE, portMAX_DELAY);
+    ESP_LOGD(TAG, "done, connected");
+}
+
+void e12aio_wifi_ap_wait_connect(const char *TAG)
+{
+    ESP_LOGD(TAG, "waiting until wifi AP is running");
+    xEventGroupWaitBits(g_wifi_event_group, E12AIO_WIFI_AP_STARTED, pdFALSE, pdTRUE, portMAX_DELAY);
     ESP_LOGD(TAG, "done, connected");
 }

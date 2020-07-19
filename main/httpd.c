@@ -50,6 +50,7 @@ static const char *g_static_resp = "{\"status\":\"ok\"}";
 void e12aio_httpd_init_task(void *arg)
 {
     e12aio_config_wait_load(TAG);
+    e12aio_wifi_ap_wait_connect(TAG);
     e12aio_httpd_start();
     vTaskDelete(NULL);
 }

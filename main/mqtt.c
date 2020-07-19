@@ -55,7 +55,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
         xEventGroupSetBits(g_mqtt_event_group, E12AIO_MQTT_CONNECTED);
-        e12aio_mqtt_online_send();
+        xTaskCreate(e12aio_mqtt_online_task, "mqtt_online", 2048, NULL, 5, NULL);
         xTaskCreate(e12aio_mqtt_keep_alive_task, "mqtt_keepalive", 2048, NULL, 2, &s_keepAlive);
         break;
     case MQTT_EVENT_DISCONNECTED:
@@ -63,8 +63,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         xEventGroupClearBits(g_mqtt_event_group, E12AIO_MQTT_CONNECTED);
         if (s_keepAlive != NULL)
             vTaskDelete(s_keepAlive);
-        e12aio_mqtt_disconnect();
-        xTaskCreate(e12aio_mqtt_init_task, "mqtt_init", 2048, NULL, 5, NULL);
+        xTaskCreate(e12aio_mqtt_disconnect_task, "mqtt_disconnect", 2048, NULL, 5, NULL);
         break;
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
@@ -78,15 +77,14 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
         {
-            const uint8_t topic_len = event->topic_len;
-            const uint8_t payload_len = event->data_len;
-            char topic[topic_len + 1];
-            char payload[payload_len + 1];
-            memset(topic, 0, topic_len);
-            memset(payload, 0, payload_len);
-            strncpy(topic, event->topic, topic_len);
-            strncpy(payload, event->data, payload_len);
-            e12aio_mqtt_received(topic, payload);
+            e12aio_mqtt_received_message msg;
+            msg.topic = pvPortMalloc(event->topic_len + 1);
+            msg.payload = pvPortMalloc(event->data_len + 1);
+            memset(msg.topic, 0, event->topic_len + 1);
+            memset(msg.payload, 0, event->data_len + 1);
+            strncpy(msg.topic, event->topic, event->topic_len);
+            strncpy(msg.payload, event->data, event->data_len);
+            xTaskCreate(e12aio_mqtt_received_task, "mqtt_msg", 2048, &msg, 10, NULL);
         }
         break;
     case MQTT_EVENT_ERROR:
@@ -98,7 +96,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 void e12aio_mqtt_init_task(void *arg)
 {
-    ESP_LOGD(TAG, "mqtt init task called...");
+    ESP_LOGD(TAG, "MQTT init task called...");
     e12aio_config_wait_load(TAG);
     e12aio_mqtt_connect();
     vTaskDelete(NULL);
@@ -124,8 +122,7 @@ void e12aio_mqtt_restart()
 {
     // Rebind all subscriptions and topics
     if (e12aio_mqtt_is_connected())
-        e12aio_mqtt_disconnect();
-    e12aio_mqtt_connect();
+        xTaskCreate(e12aio_mqtt_disconnect_task, "mqtt_restart", 2048, NULL, 5, NULL);
 }
 
 /**
@@ -159,19 +156,22 @@ void e12aio_mqtt_disconnect_watchdog(void *args)
 /**
  * Disconnect from a MQTT Server
  */
-void e12aio_mqtt_disconnect()
+void e12aio_mqtt_disconnect_task(void *arg)
 {
     ESP_LOGI(TAG, "MQTT: Disconnecting");
     xEventGroupClearBits(g_mqtt_event_group, E12AIO_MQTT_DISCONNECTED);
-    xTaskCreate(e12aio_mqtt_disconnect_watchdog, "mqtt_disconnect", 2048, NULL, 3, NULL);
     if (g_client != NULL)
     {
-        if (e12aio_mqtt_is_connected())
-            esp_mqtt_client_stop(g_client);
+        xTaskCreate(e12aio_mqtt_disconnect_watchdog, "mqtt_disconnect", 2048, NULL, 3, NULL);
         esp_mqtt_client_destroy(g_client);
         g_client = NULL;
     }
     xEventGroupSetBits(g_mqtt_event_group, E12AIO_MQTT_DISCONNECTED);
+    ESP_LOGD(TAG, "MQTT: Disconnected");
+
+    // restart connecting process
+    e12aio_mqtt_connect();
+    vTaskDelete(NULL);
 }
 
 /**
@@ -183,9 +183,9 @@ void e12aio_mqtt_keep_alive_task(void *arg)
     const uint16_t l_delay = (CONFIG_MQTT_KEEPALIVE_TIMEOUT) / portTICK_PERIOD_MS;
     for (;;)
     {
+        vTaskDelay(l_delay);
         ESP_LOGI(TAG, "MQTT: Sending keepAlive");
         e12aio_mqtt_keep_alive_send();
-        vTaskDelay(l_delay);
     }
     vTaskDelete(NULL);
 }
@@ -243,7 +243,7 @@ void e12aio_mqtt_hass_sensor_config(const char *name)
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "sensor", name, -1, "config");
     e12aio_mqtt_hass_sensor_config_payload(l_payload, CONFIG_MQTT_PAYLOAD_SIZE, name);
-    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 2, 0);
     vTaskDelay(g_delay);
 }
 
@@ -297,7 +297,7 @@ void e12aio_mqtt_hass_relay(uint8_t relay)
     char l_payload[CONFIG_MQTT_PAYLOAD_SIZE];
     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", relay, "config");
     e12aio_mqtt_hass_switch_config_payload(l_payload, CONFIG_MQTT_PAYLOAD_SIZE, relay);
-    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 1, 0);
+    esp_mqtt_client_publish(g_client, l_topic, l_payload, strlen(l_payload), 2, 0);
     vTaskDelay(g_delay);
 }
 
@@ -349,7 +349,7 @@ void e12aio_mqtt_hass_sensors()
  * 4. Send to mqtt (home assistant) each relay status
  * 5. Send keepAlive: uptime, ipaddr, build, model
  */
-void e12aio_mqtt_online_send()
+void e12aio_mqtt_online_task(void *arg)
 {
     e12aio_mqtt_hass_sensors();
     for (uint8_t l_x = 1; l_x < 4; l_x++)
@@ -361,6 +361,7 @@ void e12aio_mqtt_online_send()
     }
     e12aio_mqtt_subscribe_actions();
     e12aio_mqtt_keep_alive_send();
+    vTaskDelete(NULL);
 }
 
 /**
@@ -384,54 +385,61 @@ bool e12aio_mqtt_is_connected()
  * home/action/e12aio3_CC9900/scan/get, json
  * home/action/e12aio3_CC9900/restart/set, yes
  * 
- * @param topic subscribed topic who received the message payload
- * @param payload payload message buffer
+ * @param arg e12aio_mqtt_received_message contain a topic and payload
  */
-void e12aio_mqtt_received(const char *topic, const char *payload)
+void e12aio_mqtt_received_task(void *arg)
 {
+    e12aio_mqtt_received_message *msg = (e12aio_mqtt_received_message *)arg;
+    ESP_LOGD(TAG, "Topic: %s - Payload: %s", msg->topic, msg->payload);
+
+    // unique buffer to test any kind of topic
     size_t l_len = 0;
     char l_topic[CONFIG_MQTT_TOPIC_SIZE];
-    ESP_LOGD(TAG, "Topic: %s, payload [%s]", topic, payload);
-    if (strstr(topic, "/switch/") != NULL)
+
+    // Discovery what kind of topic is
+    if (strstr(msg->topic, "/switch/") != NULL)
     {
 #ifdef CONFIG_COMPONENT_RELAY
         for (uint8_t l_x = 1; l_x < 4; l_x++)
         {
             l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "switch", "relay", l_x, "set");
-            if (strncmp(topic, l_topic, l_len) == 0)
+            if (strncmp(msg->topic, l_topic, l_len) == 0)
             {
-                bool l_status = strcmp(payload, "ON") == 0;
+                bool l_status = strcmp(msg->payload, "ON") == 0;
                 e12aio_relay_set(l_x, l_status);
                 e12aio_mqtt_relay_send_status(l_x);
             }
         }
 #endif
     }
-    else if (strstr(topic, "/action/") != NULL)
+    else if (strstr(msg->topic, "/action/") != NULL)
     {
-        // test config/set
-        l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "set");
-        if (strncmp(topic, l_topic, l_len) == 0)
-        {
-            e12aio_config_load_from_buffer(payload);
-            e12aio_config_lazy_save();
-        }
-        // test config/get
-        l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "get");
-        if (strncmp(topic, l_topic, l_len) == 0)
-        {
-            char l_buffer[CONFIG_JSON_BUFFER_SIZE];
-            e12aio_config_save_buffer(l_buffer, CONFIG_JSON_BUFFER_SIZE);
-            e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, NULL);
-            esp_mqtt_client_publish(g_client, l_topic, l_buffer, strlen(l_buffer), 1, 0);
-        }
+        // // test config/set
+        // l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "set");
+        // if (strncmp(msg->topic, l_topic, l_len) == 0)
+        // {
+        //     e12aio_config_load_from_buffer(msg->payload);
+        //     e12aio_config_lazy_save();
+        // }
+        // // test config/get
+        // l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, "get");
+        // if (strncmp(msg->topic, l_topic, l_len) == 0)
+        // {
+        //     char l_buffer[CONFIG_JSON_BUFFER_SIZE];
+        //     e12aio_config_save_buffer(l_buffer, CONFIG_JSON_BUFFER_SIZE);
+        //     e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "config", -1, NULL);
+        //     esp_mqtt_client_publish(g_client, l_topic, l_buffer, strlen(l_buffer), 1, 0);
+        // }
         // test restart/set
         l_len = e12aio_mqtt_topic(l_topic, CONFIG_MQTT_TOPIC_SIZE, "action", "restart", -1, "set");
-        if (strncmp(topic, l_topic, l_len) == 0)
+        if (strncmp(msg->topic, l_topic, l_len) == 0)
         {
             esp_restart();
         }
     }
+    vPortFree(msg->topic);
+    vPortFree(msg->payload);
+    vTaskDelete(NULL);
 }
 
 void e12aio_mqtt_subscribe_actions()
