@@ -1,6 +1,3 @@
-[submodule "tools/mkspiffs"]
-	path = tools/mkspiffs
-	url = https://github.com/igrr/mkspiffs.git
 [submodule "tools/content"]
 	path = tools/content
 	url = git@github.com:nsfilho/E12AIO3-SPIFFS.git
