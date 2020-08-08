@@ -1,6 +1,9 @@
-[submodule "tools/mkspiffs"]
-	path = tools/mkspiffs
-	url = https://github.com/igrr/mkspiffs.git
 [submodule "tools/content"]
 	path = tools/content
 	url = git@github.com:nsfilho/E12AIO3-SPIFFS.git
+[submodule "tools/mkspiffs"]
+	path = tools/mkspiffs
+	url = https://github.com/nsfilho/mkspiffs.git
+[submodule "components/int-mqtt/esp-mqtt"]
+	path = components/int-mqtt/esp-mqtt
+	url = https://github.com/nsfilho/esp-mqtt.git

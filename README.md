@@ -49,6 +49,7 @@ Main features:
 -   ✓ 🏠 Home assistant auto discovery;
 -   ✓ 📡 Networking detection system (auto soft-ap & station);
 -   ✓ 🎛 MQTT Keep Alive;
+-   ✓ 🦾 MQTT Library updated version (handle many messages in a short time);
 -   ✓ 🛠 Web Configuration (mobile-first)
 -   ✓ 🕹 Web API
 -   ✓ 🎉 OTA (Over-the-air) Firmware Update

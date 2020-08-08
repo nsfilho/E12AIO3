@@ -20,6 +20,8 @@
 #
 PROJECT_NAME := e12aio3
 
+EXCLUDE_COMPONENTS = mqtt
+
 include $(IDF_PATH)/make/project.mk
 
 allcerts:
