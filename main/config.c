@@ -175,7 +175,7 @@ void e12aio_config_load_from_buffer(const char *buffer)
     }
     strncpy(g_config.wifi.sta_ssid, l_wifi_sta_ssid != NULL ? l_wifi_sta_ssid->valuestring : CONFIG_WIFI_SSID, E12AIO_WIFI_SSID_SIZE);
     strncpy(g_config.wifi.sta_password, l_wifi_sta_password != NULL ? l_wifi_sta_password->valuestring : CONFIG_WIFI_PASSWORD, E12AIO_WIFI_PASSWORD_SIZE);
-    strncpy(g_config.wifi.ap_password, l_wifi_ap_password != NULL ? l_wifi_ap_password->valuestring : CONFIG_WIFI_AP_PASSWORD, E12AIO_WIFI_PASSWORD_SIZE);
+    strncpy(g_config.wifi.ap_password, l_wifi_ap_password != NULL ? l_wifi_ap_password->valuestring : (strlen(CONFIG_WIFI_AP_PASSWORD) < 8 ? "password" : CONFIG_WIFI_AP_PASSWORD), E12AIO_WIFI_PASSWORD_SIZE);
     g_config.wifi.dhcp = (l_wifi_dhcp != NULL) ? cJSON_IsTrue(l_wifi_dhcp) : true;
     strncpy(g_config.wifi.ip, l_wifi_ip != NULL ? l_wifi_ip->valuestring : "192.168.1.2", E12AIO_WIFI_PASSWORD_SIZE);
     strncpy(g_config.wifi.netmask, l_wifi_netmask != NULL ? l_wifi_netmask->valuestring : "255.255.255.0", E12AIO_IPV4_SIZE);

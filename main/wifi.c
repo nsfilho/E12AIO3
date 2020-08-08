@@ -196,7 +196,6 @@ void e12aio_wifi_ap_start()
     l_conf_ap.ap.beacon_interval = 100;
     l_conf_ap.ap.ssid_hidden = 0;
     l_conf_ap.ap.ssid_len = strlen(board_name);
-    l_conf_ap.ap.ssid_len = 0;
     memcpy(&l_conf_ap.ap.ssid, board_name, sizeof(l_conf_ap.ap.ssid));
     if (strlen(l_config->wifi.ap_password) > 0)
     {
@@ -219,8 +218,8 @@ void e12aio_wifi_ap_start()
     // Setting all configurations
     taskENTER_CRITICAL();
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &l_conf_sta));
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &l_conf_ap));
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &l_conf_sta));
     ESP_ERROR_CHECK(esp_wifi_start());
     taskEXIT_CRITICAL();
 
