@@ -42,7 +42,7 @@ You can see here a sample screenshot of our HTML5 (and responsive) interface ðŸ˜
 
 If you click at relay status port, you can toggle their state (ON / OFF). Any kind of idea are wellcome. If you are `web design`, `web developer` or at least a entusiast and want to contribute with that, please e-mail me.
 
-## Firmware
+## Firmware 2.3.0
 
 Main features:
 
