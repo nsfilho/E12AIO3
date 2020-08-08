@@ -4,3 +4,6 @@
 [submodule "tools/content"]
 	path = tools/content
 	url = git@github.com:nsfilho/E12AIO3-SPIFFS.git
+[submodule "components/esp-mqtt/esp-mqtt"]
+	path = components/esp-mqtt/esp-mqtt
+	url = https://github.com/espressif/esp-mqtt.git
